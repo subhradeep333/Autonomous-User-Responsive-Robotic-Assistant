@@ -124,7 +124,7 @@ class GestureClassifier:
 
         return (is_away_from_knuckles and is_extended_from_wrist) or (is_straight and is_away_from_knuckles)
 
-    def classify_frame(self, detected, landmarks, confidence, min_confidence=0.70):
+    def classify_frame(self, detected, landmarks, confidence, min_confidence=0.60):
         """
         Classifies single frame landmarks into candidate gesture command with high accuracy and tolerance.
         Returns: CMD_FORWARD, CMD_BACKWARD, CMD_LEFT, CMD_RIGHT, CMD_STOP, CMD_EMERGENCY_STOP, or UNKNOWN/NONE.
@@ -177,34 +177,34 @@ class GestureClassifier:
             angle_deg = math.degrees(math.atan2(dy, dx))
             self.last_pointing_angle = angle_deg
 
-            # Angular deadband / hysteresis (6 degrees buffer to prevent jitter at boundaries)
-            buf = 6.0 if self.last_directional_command is not None else 0.0
+            # Angular deadband / hysteresis (10 degrees buffer to prevent jitter at boundaries)
+            buf = 10.0 if self.last_directional_command is not None else 0.0
             prev_dir = self.last_directional_command
 
             target_cmd = None
 
             # Check if remaining in previous direction with hysteresis buffer
-            if prev_dir == config.CMD_FORWARD and (-135 - buf <= angle_deg <= -45 + buf):
+            if prev_dir == config.CMD_FORWARD and (-145 - buf <= angle_deg <= -35 + buf):
                 target_cmd = config.CMD_FORWARD
-            elif prev_dir == config.CMD_BACKWARD and (45 - buf <= angle_deg <= 135 + buf):
+            elif prev_dir == config.CMD_BACKWARD and (35 - buf <= angle_deg <= 145 + buf):
                 target_cmd = config.CMD_BACKWARD
-            elif prev_dir == config.CMD_RIGHT and (-45 - buf < angle_deg < 45 + buf):
+            elif prev_dir == config.CMD_RIGHT and (-35 - buf < angle_deg < 35 + buf):
                 target_cmd = config.CMD_RIGHT
-            elif prev_dir == config.CMD_LEFT and (angle_deg > (135 - buf) or angle_deg < (-135 + buf)):
+            elif prev_dir == config.CMD_LEFT and (angle_deg > (145 - buf) or angle_deg < (-145 + buf)):
                 target_cmd = config.CMD_LEFT
             else:
-                # Nominal sectors:
-                # -135 to -45 deg -> UP (FORWARD ☝️)
-                # 45 to 135 deg   -> DOWN (BACKWARD 👇)
-                # > 135 or < -135 -> LEFT (👈)
-                # -45 to 45 deg   -> RIGHT (👉)
-                if -135 <= angle_deg <= -45:
+                # Ergonomically calibrated directional sectors:
+                # -145 to -35 deg -> UP / FORWARD (☝️ Generous 110-deg cone centered at -90 deg)
+                # 35 to 145 deg   -> DOWN / BACKWARD (👇 110-deg cone centered at +90 deg)
+                # > 145 or < -145 -> LEFT (👈 Dedicated horizontal left pointing)
+                # -35 to 35 deg   -> RIGHT (👉 Dedicated horizontal right pointing)
+                if -145 <= angle_deg <= -35:
                     target_cmd = config.CMD_FORWARD
-                elif 45 <= angle_deg <= 135:
+                elif 35 <= angle_deg <= 145:
                     target_cmd = config.CMD_BACKWARD
-                elif angle_deg > 135 or angle_deg < -135:
+                elif angle_deg > 145 or angle_deg < -145:
                     target_cmd = config.CMD_LEFT
-                elif -45 < angle_deg < 45:
+                elif -35 < angle_deg < 35:
                     target_cmd = config.CMD_RIGHT
 
             if target_cmd:
@@ -215,7 +215,7 @@ class GestureClassifier:
         self.last_directional_command = None
         return "UNKNOWN"
 
-    def process(self, detected, landmarks, confidence, min_confidence=0.70):
+    def process(self, detected, landmarks, confidence, min_confidence=0.60):
         """
         Applies temporal hysteresis smoothing with majority voting.
         Fast-path emergency stop (<30ms) and fast stop (<60ms) while filtering out single-frame noise.
@@ -245,6 +245,7 @@ class GestureClassifier:
             if self.frame_buffer.count(config.CMD_STOP) >= 2:
                 self.current_stable_command = config.CMD_STOP
                 return candidate, config.CMD_STOP, True
+            return candidate, self.current_stable_command, False
 
         # Append candidate to frame buffer
         self.frame_buffer.append(candidate)

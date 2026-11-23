@@ -190,12 +190,13 @@ def run_all_tests():
     c_cand, c_stable, is_st = classifier.process(True, fist_landmarks, 0.95)
     record_test("Fast-Path Emergency Stop Instant Override", c_stable == config.CMD_EMERGENCY_STOP and is_st is True)
 
-    # 13. Fast-Path Open Palm Stop (2 frames)
+    # 13. Fast-Path Open Palm Stop (exactly 2 frames, no double-append)
     classifier.set_stability_threshold(5)
     classifier.current_stable_command = config.CMD_FORWARD
-    classifier.process(True, palm_landmarks, 0.95)
+    _, c_stop_1, is_st_1 = classifier.process(True, palm_landmarks, 0.95)
+    record_test("Frame 1 Open-Palm Does Not Preemptively Stop", c_stop_1 == config.CMD_FORWARD and is_st_1 is False)
     _, c_stop_2, is_st_2 = classifier.process(True, palm_landmarks, 0.95)
-    record_test("Fast Open-Palm Stop Activation within 2 Frames", c_stop_2 == config.CMD_STOP and is_st_2 is True)
+    record_test("Fast Open-Palm Stop Activation Exactly at 2 Frames", c_stop_2 == config.CMD_STOP and is_st_2 is True)
 
     # --------------------------------------------------------------------------
     # SUITE 4: CENTRALIZED SAFETY RULES ENGINE & FAULT PRIORITIES

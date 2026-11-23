@@ -133,6 +133,9 @@ void turnRight(uint8_t speed) {
 void stopMotors() {
     target_speed_ena = 0;
     target_speed_enb = 0;
+    current_speed_ena = 0;
+    current_speed_enb = 0;
+    applyHardwarePwm(0, 0);
 
     digitalWrite(IN1_PIN, LOW);
     digitalWrite(IN2_PIN, LOW);

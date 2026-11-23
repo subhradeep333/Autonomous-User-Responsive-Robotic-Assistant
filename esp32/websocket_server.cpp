@@ -8,15 +8,24 @@
 
 WebSocketsServer webSocket = WebSocketsServer(WEBSOCKET_PORT);
 static char current_active_cmd = 'S';
+static int active_client_num = -1;
 
 void sendTelemetry(uint8_t num, const char* status_str) {
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+    JsonDocument doc;
+#else
     StaticJsonDocument<384> doc;
+#endif
     doc["status"] = status_str;
     doc["command"] = String(current_active_cmd);
     doc["battery"] = 85;  // Simulated battery level percentage
 
     RadarData radar = getRadarData();
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+    JsonObject r = doc["radar"].to<JsonObject>();
+#else
     JsonObject r = doc.createNestedObject("radar");
+#endif
     r["angle"] = radar.angle;
     r["distance"] = (int)radar.distance;
     r["left_dist"] = (int)radar.left_dist;
@@ -30,14 +39,47 @@ void sendTelemetry(uint8_t num, const char* status_str) {
     webSocket.sendTXT(num, response);
 }
 
+void broadcastTelemetry(const char* status_str) {
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+    JsonDocument doc;
+#else
+    StaticJsonDocument<384> doc;
+#endif
+    doc["status"] = status_str;
+    doc["command"] = String(current_active_cmd);
+    doc["battery"] = 85;
+
+    RadarData radar = getRadarData();
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+    JsonObject r = doc["radar"].to<JsonObject>();
+#else
+    JsonObject r = doc.createNestedObject("radar");
+#endif
+    r["angle"] = radar.angle;
+    r["distance"] = (int)radar.distance;
+    r["left_dist"] = (int)radar.left_dist;
+    r["center_dist"] = (int)radar.center_dist;
+    r["right_dist"] = (int)radar.right_dist;
+    r["status"] = radar.status;
+    r["best_path"] = radar.best_path;
+
+    String response;
+    serializeJson(doc, response);
+    webSocket.broadcastTXT(response);
+}
+
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
     switch (type) {
         case WStype_DISCONNECTED:
             Serial.printf("[WS] Client #%u Disconnected!\n", num);
+            if (active_client_num == num) {
+                active_client_num = -1;
+            }
             stopMotors();
             break;
 
         case WStype_CONNECTED: {
+            active_client_num = num;
             IPAddress ip = webSocket.remoteIP(num);
             Serial.printf("[WS] Client #%u Connected from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
             sendTelemetry(num, "connected");
@@ -45,7 +87,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         }
 
         case WStype_TEXT: {
+            active_client_num = num;
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+            JsonDocument doc;
+#else
             StaticJsonDocument<256> doc;
+#endif
             DeserializationError error = deserializeJson(doc, payload, length);
 
             if (error) {
@@ -66,6 +113,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
             // Execute Motor Control Actions
             switch (cmd) {
                 case 'F':
+#if ENABLE_AUTONOMOUS_AVOIDANCE
                     if (isFrontBlocked()) {
                         RadarData radar = getRadarData();
                         if (strcmp(radar.best_path, "LEFT") == 0) {
@@ -83,6 +131,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
                     } else {
                         moveForward(speed);
                     }
+#else
+                    moveForward(speed);
+#endif
                     break;
                 case 'B':
                     moveBackward(speed);
@@ -133,7 +184,8 @@ void checkAutonomousObstacleAvoidance() {
             Serial.println("[AUTO-AVOID] Obstacle detected! Reversing to clear space");
         }
 
-        sendTelemetry(0, "AUTONOMOUS_ROUTE_DIVERT");
+        // Broadcast diversion telemetry to all connected clients
+        broadcastTelemetry("AUTONOMOUS_ROUTE_DIVERT");
     }
 }
 

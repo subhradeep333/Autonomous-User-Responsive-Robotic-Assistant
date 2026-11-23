@@ -57,6 +57,14 @@ class WebSocketManager(QObject):
                     compression=None
                 ) as ws:
                     self.is_connected = True
+                    # Purge any stale packets accumulated in queue during disconnection
+                    while not self.async_queue.empty():
+                        try:
+                            self.async_queue.get_nowait()
+                            self.async_queue.task_done()
+                        except (asyncio.QueueEmpty, ValueError):
+                            break
+
                     self.connection_status_changed.emit(True, f"Connected to {self.ws_url}")
                     self.log_emitted.emit("WS", "WebSocket connection established!")
 

@@ -45,9 +45,12 @@
 #define RIGHT_MOTOR_TRIM 1.0f  // Multiplier for Right Motors (ENB)
 #define MIN_MOTOR_PWM 100      // Minimum PWM floor to overcome motor gearbox friction
 
-// Motor Direction Polarity Inversion (Set to true if motors spin backward when showing forward)
-#define INVERT_LEFT_MOTOR  true  // Reverses Left Motor Pair direction
-#define INVERT_RIGHT_MOTOR true  // Reverses Right Motor Pair direction
+// Motor Direction Polarity Inversion (Calibrated for Left: OUT1/OUT2, Right: OUT3/OUT4)
+#define INVERT_LEFT_MOTOR  true   // Left Motors (OUT1/OUT2): true keeps Forward when IN1=LOW, IN2=HIGH
+#define INVERT_RIGHT_MOTOR false  // Right Motors (OUT3/OUT4): false keeps Forward when IN3=HIGH, IN4=LOW
+
+// Autonomous Radar Route Diversion (0 = Pure Direct Manual Gesture Driving, 1 = Enable Auto-Steering Diversion)
+#define ENABLE_AUTONOMOUS_AVOIDANCE 0
 
 // Safety Watchdog Timer Threshold (ms)
 #define SAFETY_TIMEOUT_MS 500

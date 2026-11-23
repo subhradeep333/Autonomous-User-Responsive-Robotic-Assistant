@@ -47,6 +47,11 @@ class HandDetector:
             self.use_tasks_api = True
             self._ensure_model_file()
             
+            if not os.path.exists(MODEL_PATH):
+                print(f"[!] Critical: {MODEL_PATH} not found. MediaPipe Tasks cannot run without model file.")
+                self.landmarker = None
+                return
+
             from mediapipe.tasks import python
             from mediapipe.tasks.python import vision
 
@@ -69,7 +74,8 @@ class HandDetector:
                 urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
                 print("[+] Model downloaded successfully.")
             except Exception as e:
-                print(f"[!] Failed to download model automatically: {e}")
+                print(f"[!] Warning: Failed to download MediaPipe model automatically: {e}")
+                print("[!] Note: If connected to the ESP32 Wi-Fi SoftAP ('GestureCar'), please connect to internet once to download the model.")
 
     def _smooth_landmarks(self, current_landmarks):
         """
@@ -255,6 +261,9 @@ class HandDetector:
         pixel_landmarks = []
 
         if self.use_tasks_api:
+            if not self.landmarker:
+                return False, [], [], 0.0, "Unknown"
+
             now_ms = int(time.time() * 1000)
             if now_ms <= self.last_timestamp_ms:
                 now_ms = self.last_timestamp_ms + 1

@@ -263,8 +263,8 @@ class MainWindow(QMainWindow):
         self.chk_hud.setChecked(True)
         vp_options.addWidget(self.chk_hud)
 
-        self.chk_flip = QCheckBox("Flip Video Horizontal")
-        self.chk_flip.setChecked(False)
+        self.chk_flip = QCheckBox("Flip Video Horizontal (Mirror Mode)")
+        self.chk_flip.setChecked(True)
         vp_options.addWidget(self.chk_flip)
         video_card_layout.addLayout(vp_options)
 
@@ -618,14 +618,14 @@ class MainWindow(QMainWindow):
 
         c_hdr = QHBoxLayout()
         c_hdr.addWidget(self._create_metric_header("MIN LANDMARK CONFIDENCE"))
-        self.lbl_conf_setting = QLabel("0.70")
+        self.lbl_conf_setting = QLabel("0.60")
         self.lbl_conf_setting.setStyleSheet("font-weight: bold; color: #00E5FF;")
         c_hdr.addWidget(self.lbl_conf_setting, alignment=Qt.AlignRight)
         c_layout.addLayout(c_hdr)
 
         self.slider_conf = QSlider(Qt.Horizontal)
-        self.slider_conf.setRange(50, 95)
-        self.slider_conf.setValue(70)
+        self.slider_conf.setRange(40, 95)
+        self.slider_conf.setValue(60)
         self.slider_conf.valueChanged.connect(self._on_conf_slider_changed)
         c_layout.addWidget(self.slider_conf)
         layout.addWidget(card_conf)
@@ -940,6 +940,8 @@ class MainWindow(QMainWindow):
         if self.car_controller:
             self.car_controller.send_immediate_stop()
         if self.websocket_manager:
+            # Allow brief 80ms window for immediate STOP packet to dispatch over WebSocket
+            time.sleep(0.08)
             self.websocket_manager.stop()
         if self.camera_stream:
             self.camera_stream.stop()
