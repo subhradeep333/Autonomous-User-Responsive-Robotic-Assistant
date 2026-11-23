@@ -35,15 +35,24 @@
 #define ENB_PIN 33  // PWM Speed Right Motors (ENB)
 
 // ESP32 LEDC PWM Hardware Timer & Power Calibration Settings
-#define PWM_FREQ 5000
-#define PWM_RESOLUTION 8  // 8-bit PWM (0 - 255)
+#define PWM_FREQ 1000          // 1000Hz (1kHz) optimal linear switching frequency for L298N driver
+#define PWM_RESOLUTION 8       // 8-bit resolution (0 - 255 linear duty cycle)
 #define PWM_CHANNEL_ENA 0
 #define PWM_CHANNEL_ENB 1
 
-// Motor Power Calibration & Trim (Adjust 0.5f - 1.0f if one motor pair turns faster than the other)
-#define LEFT_MOTOR_TRIM 1.0f   // Multiplier for Left Motors (ENA)
-#define RIGHT_MOTOR_TRIM 1.0f  // Multiplier for Right Motors (ENB)
-#define MIN_MOTOR_PWM 100      // Minimum PWM floor to overcome motor gearbox friction
+// Motor Power Calibration & Trim (Adjust if one motor pair is faster/stronger than the other)
+#define LEFT_MOTOR_TRIM 1.0f   // Multiplier for Left Motors (ENA) - reduce (e.g. 0.85f) if car drifts right
+#define RIGHT_MOTOR_TRIM 1.0f  // Multiplier for Right Motors (ENB) - reduce (e.g. 0.85f) if car drifts left
+#define MIN_MOTOR_PWM 100      // Minimum PWM floor to overcome static gearbox friction cleanly
+
+// Steering Mode:
+// - PIVOT_STEERING true (Recommended): Inner wheel stops, outer wheel drives forward.
+//   Drastically reduces tire scrubbing friction, prevents motor stalls, and avoids battery brownouts.
+// - PIVOT_STEERING false: Tank / skid-steer counter-rotation (left reverse, right forward).
+#define PIVOT_STEERING true
+
+// Turn Power Boost: Additional PWM added during turns to ensure enough torque on high-friction floors
+#define TURN_POWER_BOOST 30    // Extra PWM added to turning maneuvers (clamped to 255)
 
 // Motor Direction Polarity Inversion (Calibrated for Left: OUT1/OUT2, Right: OUT3/OUT4)
 #define INVERT_LEFT_MOTOR  true   // Left Motors (OUT1/OUT2): true keeps Forward when IN1=LOW, IN2=HIGH

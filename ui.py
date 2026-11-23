@@ -874,7 +874,10 @@ class MainWindow(QMainWindow):
 
         # 8. Update Telemetry UI Displays & Controls
         g_meta = config.GESTURE_METADATA.get(candidate_gesture, config.GESTURE_METADATA["NONE"])
-        self.lbl_gesture_val.setText(f"{g_meta[1]} {g_meta[0]}")
+        if candidate_gesture in [config.CMD_FORWARD, config.CMD_BACKWARD, config.CMD_LEFT, config.CMD_RIGHT]:
+            self.lbl_gesture_val.setText(f"{g_meta[1]} {g_meta[0]} ({self.gesture_classifier.last_pointing_angle:.0f}°)")
+        else:
+            self.lbl_gesture_val.setText(f"{g_meta[1]} {g_meta[0]}")
         self.lbl_gesture_val.setStyleSheet(f"color: {g_meta[2]};")
 
         conf_pct = int(confidence * 100.0) if detected else 0

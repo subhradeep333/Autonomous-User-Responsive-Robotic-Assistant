@@ -13,13 +13,14 @@ static inline void applyHardwarePwm(uint8_t speed_ena, uint8_t speed_enb) {
     uint8_t pwm_left = 0;
     uint8_t pwm_right = 0;
 
+    // Even, linear PWM distribution with floating-point trim and 0-255 scaling
     if (speed_ena > 0) {
         float calc_left = (float)speed_ena * LEFT_MOTOR_TRIM;
-        pwm_left = (uint8_t)constrain((int)calc_left, MIN_MOTOR_PWM, 255);
+        pwm_left = (uint8_t)constrain((int)(calc_left + 0.5f), 0, 255);
     }
     if (speed_enb > 0) {
         float calc_right = (float)speed_enb * RIGHT_MOTOR_TRIM;
-        pwm_right = (uint8_t)constrain((int)calc_right, MIN_MOTOR_PWM, 255);
+        pwm_right = (uint8_t)constrain((int)(calc_right + 0.5f), 0, 255);
     }
 
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
@@ -61,19 +62,37 @@ void updateMotorRamp() {
 
     bool updated = false;
 
+    // Linear, synchronized PWM step ramping for Left Motor (ENA)
     if (current_speed_ena < target_speed_ena) {
-        current_speed_ena = (uint8_t)min((int)target_speed_ena, (int)current_speed_ena + ACCEL_STEP_PWM);
+        if (current_speed_ena == 0 && target_speed_ena >= MIN_MOTOR_PWM) {
+            current_speed_ena = MIN_MOTOR_PWM;  // Jump directly to friction floor, eliminating flat deadband
+        } else {
+            current_speed_ena = (uint8_t)min((int)target_speed_ena, (int)current_speed_ena + ACCEL_STEP_PWM);
+        }
         updated = true;
     } else if (current_speed_ena > target_speed_ena) {
-        current_speed_ena = (uint8_t)max((int)target_speed_ena, (int)current_speed_ena - ACCEL_STEP_PWM);
+        if (target_speed_ena == 0 && current_speed_ena <= (MIN_MOTOR_PWM + ACCEL_STEP_PWM)) {
+            current_speed_ena = 0;  // Clean cutoff to prevent low-power motor hum
+        } else {
+            current_speed_ena = (uint8_t)max((int)target_speed_ena, (int)current_speed_ena - ACCEL_STEP_PWM);
+        }
         updated = true;
     }
 
+    // Linear, synchronized PWM step ramping for Right Motor (ENB)
     if (current_speed_enb < target_speed_enb) {
-        current_speed_enb = (uint8_t)min((int)target_speed_enb, (int)current_speed_enb + ACCEL_STEP_PWM);
+        if (current_speed_enb == 0 && target_speed_enb >= MIN_MOTOR_PWM) {
+            current_speed_enb = MIN_MOTOR_PWM;  // Jump directly to friction floor, eliminating flat deadband
+        } else {
+            current_speed_enb = (uint8_t)min((int)target_speed_enb, (int)current_speed_enb + ACCEL_STEP_PWM);
+        }
         updated = true;
     } else if (current_speed_enb > target_speed_enb) {
-        current_speed_enb = (uint8_t)max((int)target_speed_enb, (int)current_speed_enb - ACCEL_STEP_PWM);
+        if (target_speed_enb == 0 && current_speed_enb <= (MIN_MOTOR_PWM + ACCEL_STEP_PWM)) {
+            current_speed_enb = 0;  // Clean cutoff to prevent low-power motor hum
+        } else {
+            current_speed_enb = (uint8_t)max((int)target_speed_enb, (int)current_speed_enb - ACCEL_STEP_PWM);
+        }
         updated = true;
     }
 
@@ -115,19 +134,37 @@ void moveBackward(uint8_t speed) {
 }
 
 void turnLeft(uint8_t speed) {
-    target_speed_ena = speed;
-    target_speed_enb = speed;
+    uint8_t turn_speed = (uint8_t)min(255, (int)speed + TURN_POWER_BOOST);
 
-    // Skid Steer Left: Left wheels reverse, Right wheels forward
+#if PIVOT_STEERING
+    // Smooth Pivot Turn: Left motors STOP, Right motors drive FORWARD
+    // Eliminates tyre scrub friction, prevents motor stalls, and saves battery power
+    target_speed_ena = 0;
+    target_speed_enb = turn_speed;
+    setMotorDirection(LOW, LOW, HIGH, LOW);
+#else
+    // Skid-Steer / Tank Turn: Left wheels reverse, Right wheels forward
+    target_speed_ena = turn_speed;
+    target_speed_enb = turn_speed;
     setMotorDirection(LOW, HIGH, HIGH, LOW);
+#endif
 }
 
 void turnRight(uint8_t speed) {
-    target_speed_ena = speed;
-    target_speed_enb = speed;
+    uint8_t turn_speed = (uint8_t)min(255, (int)speed + TURN_POWER_BOOST);
 
-    // Skid Steer Right: Left wheels forward, Right wheels reverse
+#if PIVOT_STEERING
+    // Smooth Pivot Turn: Left motors drive FORWARD, Right motors STOP
+    // Eliminates tyre scrub friction, prevents motor stalls, and saves battery power
+    target_speed_ena = turn_speed;
+    target_speed_enb = 0;
+    setMotorDirection(HIGH, LOW, LOW, LOW);
+#else
+    // Skid-Steer / Tank Turn: Left wheels forward, Right wheels reverse
+    target_speed_ena = turn_speed;
+    target_speed_enb = turn_speed;
     setMotorDirection(HIGH, LOW, LOW, HIGH);
+#endif
 }
 
 void stopMotors() {

@@ -166,6 +166,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 }
 
 void checkAutonomousObstacleAvoidance() {
+#if ENABLE_AUTONOMOUS_AVOIDANCE
     // If car is currently driving FORWARD ('F') and an obstacle suddenly appears in front (< 20cm)
     if (current_active_cmd == 'F' && isFrontBlocked()) {
         RadarData radar = getRadarData();
@@ -187,6 +188,7 @@ void checkAutonomousObstacleAvoidance() {
         // Broadcast diversion telemetry to all connected clients
         broadcastTelemetry("AUTONOMOUS_ROUTE_DIVERT");
     }
+#endif
 }
 
 void setupWebSocketServer() {

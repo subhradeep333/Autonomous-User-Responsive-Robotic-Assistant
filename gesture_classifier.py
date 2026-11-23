@@ -163,8 +163,8 @@ class GestureClassifier:
             return config.CMD_STOP
 
         # 3. SINGLE INDEX / DIRECTIONAL GESTURES (☝️ / 👇 / 👈 / 👉)
-        # Index extended, middle and ring not extended, at least 2 other fingers curled (or not pinky extended)
-        if index_ext and not middle_ext and not ring_ext and (curled_count >= 2 or not pinky_ext):
+        # Index extended, middle and ring not extended, at least 1 other finger curled (or pinky not extended)
+        if index_ext and not middle_ext and not ring_ext and (curled_count >= 1 or not pinky_ext):
             index_tip = landmarks[8]
             index_pip = landmarks[6]
             index_mcp = landmarks[5]
@@ -177,34 +177,34 @@ class GestureClassifier:
             angle_deg = math.degrees(math.atan2(dy, dx))
             self.last_pointing_angle = angle_deg
 
-            # Angular deadband / hysteresis (10 degrees buffer to prevent jitter at boundaries)
-            buf = 10.0 if self.last_directional_command is not None else 0.0
+            # Angular deadband / hysteresis (8 degrees buffer to prevent jitter at boundaries)
+            buf = 8.0 if self.last_directional_command is not None else 0.0
             prev_dir = self.last_directional_command
 
             target_cmd = None
 
             # Check if remaining in previous direction with hysteresis buffer
-            if prev_dir == config.CMD_FORWARD and (-145 - buf <= angle_deg <= -35 + buf):
+            if prev_dir == config.CMD_FORWARD and (-125 - buf <= angle_deg <= -55 + buf):
                 target_cmd = config.CMD_FORWARD
-            elif prev_dir == config.CMD_BACKWARD and (35 - buf <= angle_deg <= 145 + buf):
+            elif prev_dir == config.CMD_BACKWARD and (55 - buf <= angle_deg <= 125 + buf):
                 target_cmd = config.CMD_BACKWARD
-            elif prev_dir == config.CMD_RIGHT and (-35 - buf < angle_deg < 35 + buf):
+            elif prev_dir == config.CMD_RIGHT and (-55 - buf < angle_deg < 55 + buf):
                 target_cmd = config.CMD_RIGHT
-            elif prev_dir == config.CMD_LEFT and (angle_deg > (145 - buf) or angle_deg < (-145 + buf)):
+            elif prev_dir == config.CMD_LEFT and (angle_deg > (125 - buf) or angle_deg < (-125 + buf)):
                 target_cmd = config.CMD_LEFT
             else:
-                # Ergonomically calibrated directional sectors:
-                # -145 to -35 deg -> UP / FORWARD (☝️ Generous 110-deg cone centered at -90 deg)
-                # 35 to 145 deg   -> DOWN / BACKWARD (👇 110-deg cone centered at +90 deg)
-                # > 145 or < -145 -> LEFT (👈 Dedicated horizontal left pointing)
-                # -35 to 35 deg   -> RIGHT (👉 Dedicated horizontal right pointing)
-                if -145 <= angle_deg <= -35:
+                # Ergonomically balanced 4-quadrant directional sectors:
+                # -125 to -55 deg -> UP / FORWARD (☝️ Centered vertically at -90 deg +/- 35 deg)
+                # 55 to 125 deg   -> DOWN / BACKWARD (👇 Centered vertically at +90 deg +/- 35 deg)
+                # > 125 or < -125 -> LEFT (👈 Full 110-deg horizontal left cone centered at +/-180 deg)
+                # -55 to 55 deg   -> RIGHT (👉 Full 110-deg horizontal right cone centered at 0 deg)
+                if -125 <= angle_deg <= -55:
                     target_cmd = config.CMD_FORWARD
-                elif 35 <= angle_deg <= 145:
+                elif 55 <= angle_deg <= 125:
                     target_cmd = config.CMD_BACKWARD
-                elif angle_deg > 145 or angle_deg < -145:
+                elif angle_deg > 125 or angle_deg < -125:
                     target_cmd = config.CMD_LEFT
-                elif -35 < angle_deg < 35:
+                elif -55 < angle_deg < 55:
                     target_cmd = config.CMD_RIGHT
 
             if target_cmd:
