@@ -68,7 +68,8 @@ float readDistance() {
     }
 
     float raw_cm = (float)duration * 0.0343f / 2.0f;
-    if (raw_cm < 2.0f || raw_cm > ULTRASONIC_MAX_RANGE_CM) {
+    // Reject electrical noise spikes (< 3cm) and out-of-range echoes (> max range)
+    if (raw_cm < 3.0f || raw_cm > ULTRASONIC_MAX_RANGE_CM) {
         raw_cm = ULTRASONIC_MAX_RANGE_CM;
     }
 
@@ -157,9 +158,10 @@ void scanEnvironment() {
 #endif
 
     // Update sector distance memory strictly based on current servo angle
-    if (current_angle >= 110) {
+    // In config.h & dashboard radar: 30° is Left, 90° is Center, 150° is Right
+    if (current_angle <= 70) {
         left_dist = (0.6f * current_dist) + (0.4f * left_dist);
-    } else if (current_angle <= 70) {
+    } else if (current_angle >= 110) {
         right_dist = (0.6f * current_dist) + (0.4f * right_dist);
     } else {
         center_dist = (0.6f * current_dist) + (0.4f * center_dist);

@@ -113,6 +113,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
             // Execute Motor Control Actions
             switch (cmd) {
                 case 'F':
+#if ENABLE_COLLISION_AUTOBRAKE
+                    if (isFrontBlocked()) {
+                        stopMotors();
+                        current_active_cmd = 'S';
+                        sendTelemetry(num, "COLLISION_AUTOBRAKE");
+                        return;
+                    }
+#endif
 #if ENABLE_AUTONOMOUS_AVOIDANCE
                     if (isFrontBlocked()) {
                         RadarData radar = getRadarData();
@@ -223,4 +231,12 @@ void loopWebSocketServer() {
         last_stream_time = now;
         sendTelemetry(active_client_num, "telemetry_stream");
     }
+}
+
+void setActiveCommand(char cmd) {
+    current_active_cmd = cmd;
+}
+
+char getActiveCommand() {
+    return current_active_cmd;
 }

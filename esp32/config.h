@@ -59,7 +59,7 @@
 #define INVERT_RIGHT_MOTOR false  // Right Motors (OUT3/OUT4): false keeps Forward when IN3=HIGH, IN4=LOW
 
 // Safety Watchdog Timer Threshold (ms)
-#define SAFETY_TIMEOUT_MS 500
+#define SAFETY_TIMEOUT_MS 750
 
 // Motor Acceleration Ramping Settings (Non-blocking Slew Rate Control)
 #define ACCEL_STEP_PWM 10       // Speed step increment per tick
