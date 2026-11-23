@@ -58,9 +58,6 @@
 #define INVERT_LEFT_MOTOR  true   // Left Motors (OUT1/OUT2): true keeps Forward when IN1=LOW, IN2=HIGH
 #define INVERT_RIGHT_MOTOR false  // Right Motors (OUT3/OUT4): false keeps Forward when IN3=HIGH, IN4=LOW
 
-// Autonomous Radar Route Diversion (0 = Pure Direct Manual Gesture Driving, 1 = Enable Auto-Steering Diversion)
-#define ENABLE_AUTONOMOUS_AVOIDANCE 0
-
 // Safety Watchdog Timer Threshold (ms)
 #define SAFETY_TIMEOUT_MS 500
 
@@ -69,19 +66,32 @@
 #define RAMP_INTERVAL_MS 5      // Smooth 5ms ramp interval (~90ms 0->180 accel)
 
 // SG90 Servo & HC-SR04 Ultrasonic Radar Hardware Pinout
-#define SERVO_PIN 13       // SG90 Servo Signal Pin
+#define SERVO_PIN 13       // SG90 Servo PWM Signal Pin (Orange/Yellow wire)
 #define TRIG_PIN 5         // HC-SR04 Ultrasonic Trigger Pin
 #define ECHO_PIN 17        // HC-SR04 Ultrasonic Echo Pin (GPIO 17)
-#define PWM_CHANNEL_SERVO 2 // LEDC Channel for SG90 Servo
+#define PWM_CHANNEL_SERVO 2 // LEDC Channel for SG90 Servo (50Hz, 16-bit)
 
-// Radar & Obstacle Avoidance Configuration Parameters
+// Radar & Servo Sweep Configuration Parameters
 #define SERVO_MIN_ANGLE 30         // Leftmost scan angle (degrees)
 #define SERVO_MAX_ANGLE 150        // Rightmost scan angle (degrees)
-#define SERVO_SWEEP_STEP_DEG 2     // Angle increment per sweep step
-#define SERVO_STEP_INTERVAL_MS 20  // Non-blocking servo update tick (ms)
+#define SERVO_SWEEP_STEP_DEG 3     // Angle increment per sweep step (3 deg gives smooth radar resolution)
+#define SERVO_STEP_INTERVAL_MS 25  // Non-blocking servo update tick (ms) (40 steps * 25ms = 1.0s full sweep)
+#define SERVO_CENTER_OFFSET_DEG 0  // Fine-tuning offset (-15 to +15) if servo horn is mechanically tilted
 
+// Radar Operating Mode:
+// - CONTINUOUS_RADAR_SWEEP 1 (Recommended): Continuously sweeps 30° to 150° and maps surroundings in real time
+// - CONTINUOUS_RADAR_SWEEP 0: Parks at 90° center, sweeps only when obstacle is detected
+#define CONTINUOUS_RADAR_SWEEP 1
+
+// Proximity Detection & Safety Thresholds (cm)
 #define ULTRASONIC_MAX_RANGE_CM 200.0f  // Maximum valid sensing range (cm)
 #define OBSTACLE_VERY_CLOSE_CM 10.0f    // Emergency stop / collision threshold (10cm)
 #define OBSTACLE_WARNING_CM 25.0f       // Caution threshold (25cm)
+
+// Autonomous Collision Prevention & Avoidance:
+// - ENABLE_COLLISION_AUTOBRAKE 1 (Recommended): Auto-stops motors if obstacle < 10cm ahead while driving FORWARD
+// - ENABLE_AUTONOMOUS_AVOIDANCE 0: (Optional) auto-steers left/right around obstacles
+#define ENABLE_COLLISION_AUTOBRAKE 1
+#define ENABLE_AUTONOMOUS_AVOIDANCE 0
 
 #endif // CONFIG_H

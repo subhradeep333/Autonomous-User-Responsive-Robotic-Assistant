@@ -24,12 +24,12 @@ static void setServoDuty(uint32_t duty) {
 }
 
 void updateServo(int angle) {
-    angle = max(SERVO_MIN_ANGLE, min(SERVO_MAX_ANGLE, angle));
+    int calibrated_angle = constrain(angle + SERVO_CENTER_OFFSET_DEG, SERVO_MIN_ANGLE, SERVO_MAX_ANGLE);
     current_angle = angle;
 
     // 50Hz LEDC Servo PWM Duty Calculation (16-bit resolution: 0 - 65535)
     // 0.5ms (500us) = 0 deg -> 1638 duty | 2.4ms (2400us) = 180 deg -> 7864 duty
-    uint32_t duty = 1638 + ((uint32_t)angle * (7864 - 1638) / 180);
+    uint32_t duty = 1638 + ((uint32_t)calibrated_angle * (7864 - 1638) / 180);
     setServoDuty(duty);
 }
 
@@ -112,7 +112,19 @@ void scanEnvironment() {
     // Read distance at current angle
     current_dist = readDistance();
 
-    // Determine if front path is clear vs obstructed (< 25cm)
+#if CONTINUOUS_RADAR_SWEEP
+    // Continuous 30° to 150° active sweep mapping
+    current_angle += (sweep_direction * SERVO_SWEEP_STEP_DEG);
+    if (current_angle >= SERVO_MAX_ANGLE) {
+        current_angle = SERVO_MAX_ANGLE;
+        sweep_direction = -1;
+    } else if (current_angle <= SERVO_MIN_ANGLE) {
+        current_angle = SERVO_MIN_ANGLE;
+        sweep_direction = 1;
+    }
+    updateServo(current_angle);
+#else
+    // Obstacle-triggered sweep (parks at 90° straight ahead when clear)
     bool obstacle_sensed = (center_dist < OBSTACLE_WARNING_CM || current_dist < OBSTACLE_WARNING_CM);
     if (obstacle_sensed) {
         is_sweeping = true;
@@ -142,6 +154,7 @@ void scanEnvironment() {
             updateServo(current_angle);
         }
     }
+#endif
 
     // Update sector distance memory strictly based on current servo angle
     if (current_angle >= 110) {

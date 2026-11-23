@@ -166,6 +166,17 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 }
 
 void checkAutonomousObstacleAvoidance() {
+#if ENABLE_COLLISION_AUTOBRAKE
+    // Auto-Brake Safety Stop: If driving FORWARD and obstacle is < 10cm ahead, stop immediately to avoid collision
+    if (current_active_cmd == 'F' && isFrontBlocked()) {
+        stopMotors();
+        current_active_cmd = 'S';
+        Serial.println("[AUTO-BRAKE] Obstacle detected directly ahead! Stopping motors to prevent collision.");
+        broadcastTelemetry("COLLISION_AUTOBRAKE");
+        return;
+    }
+#endif
+
 #if ENABLE_AUTONOMOUS_AVOIDANCE
     // If car is currently driving FORWARD ('F') and an obstacle suddenly appears in front (< 20cm)
     if (current_active_cmd == 'F' && isFrontBlocked()) {
@@ -203,4 +214,12 @@ void setupWebSocketServer() {
 
 void loopWebSocketServer() {
     webSocket.loop();
+
+    // Stream live radar telemetry to connected clients at ~12.5 Hz (every 80ms)
+    static unsigned long last_stream_time = 0;
+    unsigned long now = millis();
+    if (active_client_num >= 0 && (now - last_stream_time >= 80)) {
+        last_stream_time = now;
+        sendTelemetry(active_client_num, "telemetry_stream");
+    }
 }
