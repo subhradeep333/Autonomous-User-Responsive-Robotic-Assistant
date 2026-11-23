@@ -64,4 +64,7 @@ void loop() {
 
     // 6. Check 500ms safety watchdog (auto-stops motors if signal drops)
     checkSafetyWatchdog();
+
+    // 7. Non-blocking FreeRTOS yield to ensure rock-solid Wi-Fi beacon transmission
+    delay(2);
 }

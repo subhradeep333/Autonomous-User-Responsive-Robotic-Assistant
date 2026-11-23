@@ -61,8 +61,8 @@ float readDistance() {
     delayMicroseconds(10);
     digitalWrite(TRIG_PIN, LOW);
 
-    // Measure echo pulse width (12000us ~ 205cm max, eliminates 25ms blocking loop delays)
-    unsigned long duration = pulseIn(ECHO_PIN, HIGH, 12000);
+    // Measure echo pulse width (8000us ~ 137cm max, prevents CPU loop stalls that can drop Wi-Fi)
+    unsigned long duration = pulseIn(ECHO_PIN, HIGH, 8000);
     if (duration == 0) {
         return ULTRASONIC_MAX_RANGE_CM;  // No reflection -> Clear range
     }

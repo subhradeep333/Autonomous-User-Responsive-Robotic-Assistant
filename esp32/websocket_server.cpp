@@ -215,10 +215,11 @@ void setupWebSocketServer() {
 void loopWebSocketServer() {
     webSocket.loop();
 
-    // Stream live radar telemetry to connected clients at ~12.5 Hz (every 80ms)
+    // Stream live radar telemetry to connected clients at ~8 Hz (every 120ms)
+    // Throttled to maintain robust Wi-Fi SoftAP connection and prevent TCP buffer congestion
     static unsigned long last_stream_time = 0;
     unsigned long now = millis();
-    if (active_client_num >= 0 && (now - last_stream_time >= 80)) {
+    if (active_client_num >= 0 && (now - last_stream_time >= 120)) {
         last_stream_time = now;
         sendTelemetry(active_client_num, "telemetry_stream");
     }

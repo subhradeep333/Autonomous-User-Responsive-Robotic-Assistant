@@ -74,8 +74,8 @@
 // Radar & Servo Sweep Configuration Parameters
 #define SERVO_MIN_ANGLE 30         // Leftmost scan angle (degrees)
 #define SERVO_MAX_ANGLE 150        // Rightmost scan angle (degrees)
-#define SERVO_SWEEP_STEP_DEG 3     // Angle increment per sweep step (3 deg gives smooth radar resolution)
-#define SERVO_STEP_INTERVAL_MS 25  // Non-blocking servo update tick (ms) (40 steps * 25ms = 1.0s full sweep)
+#define SERVO_SWEEP_STEP_DEG 5     // Angle increment per sweep step (5 deg gives 24 smooth steps)
+#define SERVO_STEP_INTERVAL_MS 50  // Non-blocking servo update tick (50ms allows servo to settle, reducing power surges)
 #define SERVO_CENTER_OFFSET_DEG 0  // Fine-tuning offset (-15 to +15) if servo horn is mechanically tilted
 
 // Radar Operating Mode:

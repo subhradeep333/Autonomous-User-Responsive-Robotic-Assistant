@@ -24,6 +24,9 @@ void setupWiFiAP() {
     bool success = WiFi.softAP(WIFI_SSID, WIFI_PASS, WIFI_CHANNEL, 0, MAX_AP_CLIENTS);
 
     if (success) {
+        // Disable Wi-Fi modem sleep to ensure beacon stability and prevent laptop disconnects
+        WiFi.setSleep(false);
+
         // Set stable RF transmit power after SoftAP is active (prevents USB power brownout reboots)
         WiFi.setTxPower(WIFI_POWER_15dBm);
 
