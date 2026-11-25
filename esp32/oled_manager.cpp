@@ -502,23 +502,25 @@ void blinkObjectTurn(const char* direction, int duration_ms) {
         display.clearDisplay();
 
         if (phase) {
-            // Inverted full-screen flash: solid white background with black bold text
-            display.fillRect(0, 0, 128, 64, SSD1306_WHITE);
-            display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+            // High-contrast filled alert banner (avoids massive full-screen white flood current spike)
+            display.drawRoundRect(0, 0, 128, 64, 4, SSD1306_WHITE);
+            display.fillRect(4, 18, 120, 24, SSD1306_WHITE);
 
             display.setTextSize(1);
-            display.setCursor(18, 6);
+            display.setTextColor(SSD1306_WHITE);
+            display.setCursor(18, 5);
             display.print("! ! WARNING ! !");
-            display.drawLine(10, 16, 118, 16, SSD1306_BLACK);
 
-            // Big Blinking "OBJECT"
+            // Bold "OBJECT" inside the inverted filled banner
             display.setTextSize(2);
+            display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
             display.setCursor(28, 22);
             display.print("OBJECT");
 
-            // Turning Direction
+            // Turning Direction in normal glowing text
             display.setTextSize(2);
-            display.setCursor(dir_x, 44);
+            display.setTextColor(SSD1306_WHITE);
+            display.setCursor(dir_x, 46);
             display.print(dir_label);
         } else {
             // Normal high contrast: black background with white glowing text

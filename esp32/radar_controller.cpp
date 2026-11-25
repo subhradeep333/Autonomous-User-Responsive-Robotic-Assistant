@@ -3,7 +3,17 @@
 #include "motor_controller.h"
 #include "safety_controller.h"
 #include "oled_manager.h"
+#include "websocket_server.h"
 #include <esp_arduino_version.h>
+
+static void delayWithYield(uint32_t ms) {
+    unsigned long start = millis();
+    while (millis() - start < ms) {
+        loopWebSocketServer();  // Keep WebSocket heartbeat alive during avoidance maneuvers
+        resetSafetyWatchdog();   // Prevent safety watchdog timeouts
+        delay(5);
+    }
+}
 
 static int current_angle = 90;
 static int sweep_direction = 1;  // 1 = sweeping right to left, -1 = sweeping left to right
@@ -238,13 +248,12 @@ void performAvoidanceManeuver() {
 #endif
     Serial.println("\n[AUTO-AVOID] ========================================");
     Serial.println("[AUTO-AVOID] Step 1: Stopped car immediately!");
-    delay(200);  // Allow physical momentum to dissipate
+    delayWithYield(200);  // Allow physical momentum to dissipate while maintaining Wi-Fi heartbeat
 
     // 2. Servo actively scans LEFT for an empty, object-free space
     Serial.printf("[AUTO-AVOID] Step 2: Servo turning LEFT (%d°) to search for empty space...\n", SERVO_LEFT_ANGLE);
     updateServo(SERVO_LEFT_ANGLE);
-    delay(350);  // Give SG90 ample time to reach Left angle
-    resetSafetyWatchdog();
+    delayWithYield(350);  // Give SG90 ample time to reach Left angle
     float scanned_left = readDistance();
     left_dist = scanned_left;
     Serial.printf("[AUTO-AVOID] --> Left Space Clearance: %.1f cm\n", scanned_left);
@@ -252,8 +261,7 @@ void performAvoidanceManeuver() {
     // 3. Servo actively scans RIGHT for an empty, object-free space
     Serial.printf("[AUTO-AVOID] Step 3: Servo turning RIGHT (%d°) to search for empty space...\n", SERVO_RIGHT_ANGLE);
     updateServo(SERVO_RIGHT_ANGLE);
-    delay(450);  // Give SG90 ample time to sweep across to Right angle
-    resetSafetyWatchdog();
+    delayWithYield(450);  // Give SG90 ample time to sweep across to Right angle
     float scanned_right = readDistance();
     right_dist = scanned_right;
     Serial.printf("[AUTO-AVOID] --> Right Space Clearance: %.1f cm\n", scanned_right);
@@ -261,71 +269,71 @@ void performAvoidanceManeuver() {
     // 4. Return servo to CENTER (90°)
     Serial.printf("[AUTO-AVOID] Step 4: Re-centering servo to %d degrees...\n", SERVO_CENTER_ANGLE);
     updateServo(SERVO_CENTER_ANGLE);
-    delay(300);  // Give SG90 ample time to re-center
-    resetSafetyWatchdog();
+    delayWithYield(300);  // Give SG90 ample time to re-center
 
     // Update radar telemetry with the fresh scanned values
     current_radar_data.left_dist = left_dist;
     current_radar_data.right_dist = right_dist;
     detectObstacle();
 
-    // 5. Automatically turn the car in the direction of the empty space using full 4WD counter-rotation
-    // If object is in front and left (scanned_right > scanned_left), turn RIGHT into empty space!
-    // If object is in front and right (scanned_left > scanned_right), turn LEFT into empty space!
+    // 5. Automatically turn the car in the direction of the empty space
+    // Turn PWM calibrated to 170 to provide powerful turning torque without triggering battery voltage brownouts
     resetSafetyWatchdog();
+    const uint8_t AVOID_TURN_SPEED = 170;
+    const uint8_t AVOID_FWD_SPEED = 175;
+
     if (scanned_right > scanned_left && scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Obstacle on Left / Clear space on Right (%.1f cm)! Turning RIGHT...\n", scanned_right);
-        turnRight(220);
+        turnRight(AVOID_TURN_SPEED);
 #if ENABLE_OLED_DISPLAY
         blinkObjectTurn("RIGHT", 500); // Active visual blink during physical turn
 #else
-        delay(500);
+        delayWithYield(500);
 #endif
         stopMotors();
     } else if (scanned_left > scanned_right && scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Obstacle on Right / Clear space on Left (%.1f cm)! Turning LEFT...\n", scanned_left);
-        turnLeft(220);
+        turnLeft(AVOID_TURN_SPEED);
 #if ENABLE_OLED_DISPLAY
         blinkObjectTurn("LEFT", 500);  // Active visual blink during physical turn
 #else
-        delay(500);
+        delayWithYield(500);
 #endif
         stopMotors();
     } else if (scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Turning RIGHT into clear space (%.1f cm)...\n", scanned_right);
-        turnRight(220);
+        turnRight(AVOID_TURN_SPEED);
 #if ENABLE_OLED_DISPLAY
         blinkObjectTurn("RIGHT", 500);
 #else
-        delay(500);
+        delayWithYield(500);
 #endif
         stopMotors();
     } else if (scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Turning LEFT into clear space (%.1f cm)...\n", scanned_left);
-        turnLeft(220);
+        turnLeft(AVOID_TURN_SPEED);
 #if ENABLE_OLED_DISPLAY
         blinkObjectTurn("LEFT", 500);
 #else
-        delay(500);
+        delayWithYield(500);
 #endif
         stopMotors();
     } else {
         // Both sides are blocked! Dead-end trap: reverse away, then spin around
         Serial.println("[AUTO-AVOID] Step 5: Dead-end! All directions blocked. Reversing away...");
-        moveBackward(200);
+        moveBackward(170);
 #if ENABLE_OLED_DISPLAY
         blinkObjectTurn("BACK", 500);
 #else
-        delay(500);
+        delayWithYield(500);
 #endif
         stopMotors();
-        delay(150);
-        resetSafetyWatchdog();
-        turnRight(220);
+        delayWithYield(150);
+        turnRight(AVOID_TURN_SPEED);
 #if ENABLE_OLED_DISPLAY
         blinkObjectTurn("RIGHT", 450);
 #else
-        delay(450);
+        delayWithYield(450);
 #endif
         stopMotors();
     }
@@ -333,7 +341,7 @@ void performAvoidanceManeuver() {
     resetSafetyWatchdog();
 
     // Refresh forward clearance measurement after turn
-    delay(150);
+    delayWithYield(150);
     center_dist = readDistance();
     current_dist = center_dist;
     current_radar_data.center_dist = center_dist;
@@ -344,8 +352,8 @@ void performAvoidanceManeuver() {
     if (center_dist > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 6: Path ahead is now clear (%.1f cm)! Driving forward into empty space...\n", center_dist);
         resetSafetyWatchdog();
-        moveForward(200);
-        delay(450);  // Drive forward into the clear space
+        moveForward(AVOID_FWD_SPEED);
+        delayWithYield(450);  // Drive forward into the clear space
         stopMotors();
     }
 

@@ -52,7 +52,7 @@
 #define PIVOT_STEERING false
 
 // Turn Power Boost: Additional PWM added during turns to ensure enough torque on high-friction floors
-#define TURN_POWER_BOOST 40    // Extra PWM added to turning maneuvers (clamped to 255)
+#define TURN_POWER_BOOST 15    // Extra PWM added to turning maneuvers (prevents battery brownout spikes)
 
 // Motor Direction Polarity Inversion (Calibrated for Left: OUT1/OUT2, Right: OUT3/OUT4)
 #define INVERT_LEFT_MOTOR  true   // Left Motors (OUT1/OUT2): true keeps Forward when IN1=LOW, IN2=HIGH
