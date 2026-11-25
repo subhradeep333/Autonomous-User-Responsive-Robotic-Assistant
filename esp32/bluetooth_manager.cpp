@@ -3,6 +3,7 @@
 #include "motor_controller.h"
 #include "safety_controller.h"
 #include "radar_controller.h"
+#include "websocket_server.h"
 
 #if ENABLE_BLUETOOTH_SERIAL
 
@@ -48,14 +49,30 @@ void loopBluetoothServer() {
             if (input_str.length() == 1) {
                 char cmd = input_str[0];
                 resetSafetyWatchdog();
+                setActiveCommand(cmd);
                 switch (cmd) {
-                    case 'F': moveForward(180); break;
+                    case 'F':
+#if ENABLE_AUTONOMOUS_AVOIDANCE
+                        if (isFrontBlocked()) {
+                            performAvoidanceManeuver();
+                            setActiveCommand('S');
+                            break;
+                        }
+#elif ENABLE_COLLISION_AUTOBRAKE
+                        if (isFrontBlocked()) {
+                            stopMotors();
+                            setActiveCommand('S');
+                            break;
+                        }
+#endif
+                        moveForward(180);
+                        break;
                     case 'B': moveBackward(180); break;
                     case 'L': turnLeft(180); break;
                     case 'R': turnRight(180); break;
                     case 'S': stopMotors(); break;
                     case 'E': emergencyStop(); break;
-                    default: stopMotors(); break;
+                    default: stopMotors(); setActiveCommand('S'); break;
                 }
                 return;
             }
@@ -69,17 +86,20 @@ void loopBluetoothServer() {
         const char* cmd_str = doc["command"] | "S";
         uint8_t speed = doc["speed"] | 180;
         char cmd = cmd_str[0];
+        setActiveCommand(cmd);
 
         switch (cmd) {
             case 'F':
 #if ENABLE_AUTONOMOUS_AVOIDANCE
                 if (isFrontBlocked()) {
                     performAvoidanceManeuver();
+                    setActiveCommand('S');
                     break;
                 }
 #elif ENABLE_COLLISION_AUTOBRAKE
                 if (isFrontBlocked()) {
                     stopMotors();
+                    setActiveCommand('S');
                     break;
                 }
 #endif
@@ -102,6 +122,7 @@ void loopBluetoothServer() {
                 break;
             default:
                 stopMotors();
+                setActiveCommand('S');
                 break;
         }
     }

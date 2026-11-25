@@ -124,6 +124,8 @@ void drawPulseRays() {
 // FRAME 1: START / IGNITION ON...
 // ==========================================
 void playFrame1_Start() {
+  if (!oled_detected) return;
+
   const int sparkleX[10] = {34, 42, 86, 94, 38, 90, 48, 80, 30, 98};
   const int sparkleY[10] = {12, 26, 14, 24, 36, 34, 10, 11, 20, 18};
 
@@ -172,6 +174,8 @@ void playFrame1_Start() {
 // FRAME 2: SYSTEM BOOT + AURA PARTICLE REVEAL
 // ==========================================
 void playFrame2_Boot() {
+  if (!oled_detected) return;
+
   const int logoX = 16;
   const int logoY = 10;
   const int barX  = 14;
@@ -228,6 +232,8 @@ void playFrame2_Boot() {
 // FRAME 3: BLINK "AURA" 3 TIMES
 // ==========================================
 void playFrame3_Blink3Times() {
+  if (!oled_detected) return;
+
   const int logoX = 16;
   const int logoY = 22;
 
@@ -262,10 +268,9 @@ void playAuraBootAnimation() {
     playFrame2_Boot();
     playFrame3_Blink3Times();
 
-    delay(750); // Steady hold on majestic final AURA logo
-    display.clearDisplay();
-    display.display();
-    Serial.println("[OLED] AURA Boot Animation Complete! Live HUD Active.");
+    // Leave the majestic steady AURA logo visible on screen during service initialization
+    // The live HUD will smoothly overwrite it as soon as loop() starts.
+    Serial.println("[OLED] AURA Boot Animation Complete! Services Starting...");
 }
 
 void updateOLEDDisplay(char cmd, uint8_t speed, float dist, const char* radar_status, const char* best_path) {
@@ -527,7 +532,21 @@ void blinkObjectTurn(const char* direction, int duration_ms) {
         }
     }
 
+    // Always restore clean normal contrast upon exiting so the display is never left solid white
     display.setTextColor(SSD1306_WHITE);
+    display.clearDisplay();
+    display.drawRoundRect(2, 2, 124, 60, 4, SSD1306_WHITE);
+    display.setTextSize(1);
+    display.setCursor(18, 6);
+    display.print("! ! WARNING ! !");
+    display.drawLine(10, 16, 118, 16, SSD1306_WHITE);
+    display.setTextSize(2);
+    display.setCursor(28, 22);
+    display.print("OBJECT");
+    display.setTextSize(2);
+    display.setCursor(dir_x, 44);
+    display.print(dir_label);
+    display.display();
 }
 
 void showAvoidanceAnimation(const char* direction) {

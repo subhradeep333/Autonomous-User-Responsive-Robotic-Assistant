@@ -168,9 +168,9 @@ void checkAutonomousObstacleAvoidance() {
     // Trigger avoidance whenever an obstacle is detected in front (< 20cm),
     // whether the car was driving forward or has just stopped in front of the obstacle
     if (isFrontBlocked() && (now - last_avoidance_trigger > 1500)) {
-        last_avoidance_trigger = now;
         Serial.println("[AUTO-AVOID] Obstacle detected in front! Starting servo sweep and avoidance maneuver...");
         performAvoidanceManeuver();
+        last_avoidance_trigger = millis();  // Set 1.5s debounce timestamp AFTER maneuver finishes
         current_active_cmd = 'S';
         broadcastTelemetry("AUTONOMOUS_ROUTE_DIVERT");
         return;

@@ -112,14 +112,14 @@ void detectObstacle() {
 
     // Determine direction with more clear space, handling dead-ends safely
     if (center_dist < OBSTACLE_WARNING_CM) {
-        // Front is obstructed: pick clearest side, or BACKWARD if both sides are also blocked
-        if (left_dist > right_dist + 10.0f && left_dist > OBSTACLE_WARNING_CM) {
+        // Front is obstructed: pick clearest side if clearance exceeds avoid distance, or BACKWARD if both sides are blocked
+        if (left_dist > right_dist + 5.0f && left_dist > OBSTACLE_AVOID_DISTANCE_CM) {
             strncpy(current_radar_data.best_path, "LEFT", sizeof(current_radar_data.best_path));
-        } else if (right_dist > left_dist + 10.0f && right_dist > OBSTACLE_WARNING_CM) {
+        } else if (right_dist > left_dist + 5.0f && right_dist > OBSTACLE_AVOID_DISTANCE_CM) {
             strncpy(current_radar_data.best_path, "RIGHT", sizeof(current_radar_data.best_path));
-        } else if (left_dist > OBSTACLE_WARNING_CM) {
+        } else if (left_dist > OBSTACLE_AVOID_DISTANCE_CM) {
             strncpy(current_radar_data.best_path, "LEFT", sizeof(current_radar_data.best_path));
-        } else if (right_dist > OBSTACLE_WARNING_CM) {
+        } else if (right_dist > OBSTACLE_AVOID_DISTANCE_CM) {
             strncpy(current_radar_data.best_path, "RIGHT", sizeof(current_radar_data.best_path));
         } else {
             // Dead-end: all sectors blocked! Recommend backing out.
