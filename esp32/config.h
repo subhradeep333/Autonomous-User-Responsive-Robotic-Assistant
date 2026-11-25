@@ -92,9 +92,10 @@
 #define OBSTACLE_WARNING_CM 25.0f       // Caution threshold (25cm)
 
 // Autonomous Collision Prevention & Avoidance:
-// - ENABLE_COLLISION_AUTOBRAKE 1 (Recommended): Auto-stops motors if obstacle < 10cm ahead while driving FORWARD
-// - ENABLE_AUTONOMOUS_AVOIDANCE 0: (Optional) auto-steers left/right around obstacles
+// - ENABLE_COLLISION_AUTOBRAKE 1: Auto-stops motors if obstacle < 10cm ahead while driving FORWARD
+// - ENABLE_AUTONOMOUS_AVOIDANCE 1: When obstacle detected, car stops immediately and steers towards empty space
 #define ENABLE_COLLISION_AUTOBRAKE 1
-#define ENABLE_AUTONOMOUS_AVOIDANCE 0
+#define ENABLE_AUTONOMOUS_AVOIDANCE 1
+#define OBSTACLE_AVOID_DISTANCE_CM 20.0f  // Distance threshold (20cm) to trigger immediate stop & avoidance maneuver
 
 #endif // CONFIG_H

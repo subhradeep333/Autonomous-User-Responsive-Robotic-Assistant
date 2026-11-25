@@ -1,5 +1,7 @@
 #include "radar_controller.h"
 #include "config.h"
+#include "motor_controller.h"
+#include "safety_controller.h"
 #include <esp_arduino_version.h>
 
 static int current_angle = 90;
@@ -216,9 +218,48 @@ void scanEnvironment() {
 }
 
 bool isFrontBlocked() {
-    return (center_dist < OBSTACLE_VERY_CLOSE_CM || (current_angle >= 70 && current_angle <= 110 && current_dist < OBSTACLE_VERY_CLOSE_CM));
+#if ENABLE_AUTONOMOUS_AVOIDANCE
+    float trigger_dist = OBSTACLE_AVOID_DISTANCE_CM;
+#else
+    float trigger_dist = OBSTACLE_VERY_CLOSE_CM;
+#endif
+    return (center_dist < trigger_dist || (current_angle >= 70 && current_angle <= 110 && current_dist < trigger_dist));
 }
 
 RadarData getRadarData() {
     return current_radar_data;
+}
+
+void performAvoidanceManeuver() {
+    // 1. Immediately kill motor power to prevent collision
+    stopMotors();
+    Serial.println("[AUTO-AVOID] Obstacle detected directly ahead! Step 1: Stopped immediately.");
+    delay(150);  // Allow physical momentum to dissipate
+
+    // 2. Query latest radar sweep for clear direction / empty space
+    RadarData radar = getRadarData();
+    Serial.printf("[AUTO-AVOID] Step 2: Empty space is on %s (Left: %.1f cm, Center: %.1f cm, Right: %.1f cm)\n",
+                  radar.best_path, radar.left_dist, radar.center_dist, radar.right_dist);
+
+    // 3. Move towards empty space
+    if (strcmp(radar.best_path, "LEFT") == 0) {
+        Serial.println("[AUTO-AVOID] Step 3: Turning LEFT towards empty space...");
+        turnLeft(190);
+        delay(350);  // Pivot towards empty space on left
+        stopMotors();
+    } else if (strcmp(radar.best_path, "RIGHT") == 0) {
+        Serial.println("[AUTO-AVOID] Step 3: Turning RIGHT towards empty space...");
+        turnRight(190);
+        delay(350);  // Pivot towards empty space on right
+        stopMotors();
+    } else {
+        // Both sides blocked: reverse away from obstacle
+        Serial.println("[AUTO-AVOID] Step 3: Dead-end detected! Reversing away from obstacle...");
+        moveBackward(180);
+        delay(400);  // Back away from obstacle
+        stopMotors();
+    }
+
+    resetSafetyWatchdog();
+    Serial.println("[AUTO-AVOID] Step 4: Avoidance maneuver complete. Motors safely stopped in clear space.");
 }

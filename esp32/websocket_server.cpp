@@ -113,7 +113,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
             // Execute Motor Control Actions
             switch (cmd) {
                 case 'F':
-#if ENABLE_COLLISION_AUTOBRAKE
+#if ENABLE_AUTONOMOUS_AVOIDANCE
+                    if (isFrontBlocked()) {
+                        performAvoidanceManeuver();
+                        current_active_cmd = 'S';
+                        sendTelemetry(num, "OBSTACLE_DIVERTED");
+                        return;
+                    }
+#elif ENABLE_COLLISION_AUTOBRAKE
                     if (isFrontBlocked()) {
                         stopMotors();
                         current_active_cmd = 'S';
@@ -121,27 +128,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
                         return;
                     }
 #endif
-#if ENABLE_AUTONOMOUS_AVOIDANCE
-                    if (isFrontBlocked()) {
-                        RadarData radar = getRadarData();
-                        if (strcmp(radar.best_path, "LEFT") == 0) {
-                            turnLeft(speed);
-                            current_active_cmd = 'L';
-                        } else if (strcmp(radar.best_path, "RIGHT") == 0) {
-                            turnRight(speed);
-                            current_active_cmd = 'R';
-                        } else {
-                            moveBackward(speed);
-                            current_active_cmd = 'B';
-                        }
-                        sendTelemetry(num, "OBSTACLE_DIVERTED");
-                        return;
-                    } else {
-                        moveForward(speed);
-                    }
-#else
                     moveForward(speed);
-#endif
                     break;
                 case 'B':
                     moveBackward(speed);
@@ -174,38 +161,22 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 }
 
 void checkAutonomousObstacleAvoidance() {
-#if ENABLE_COLLISION_AUTOBRAKE
-    // Auto-Brake Safety Stop: If driving FORWARD and obstacle is < 10cm ahead, stop immediately to avoid collision
+#if ENABLE_AUTONOMOUS_AVOIDANCE
+    // Autonomous Avoidance: If driving FORWARD ('F') and obstacle detected, stop immediately and turn into empty space
+    if (current_active_cmd == 'F' && isFrontBlocked()) {
+        performAvoidanceManeuver();
+        current_active_cmd = 'S';
+        broadcastTelemetry("AUTONOMOUS_ROUTE_DIVERT");
+        return;
+    }
+#elif ENABLE_COLLISION_AUTOBRAKE
+    // Auto-Brake Safety Stop: If driving FORWARD and obstacle is ahead, stop immediately to avoid collision
     if (current_active_cmd == 'F' && isFrontBlocked()) {
         stopMotors();
         current_active_cmd = 'S';
         Serial.println("[AUTO-BRAKE] Obstacle detected directly ahead! Stopping motors to prevent collision.");
         broadcastTelemetry("COLLISION_AUTOBRAKE");
         return;
-    }
-#endif
-
-#if ENABLE_AUTONOMOUS_AVOIDANCE
-    // If car is currently driving FORWARD ('F') and an obstacle suddenly appears in front (< 20cm)
-    if (current_active_cmd == 'F' && isFrontBlocked()) {
-        RadarData radar = getRadarData();
-
-        if (strcmp(radar.best_path, "LEFT") == 0) {
-            turnLeft(180);
-            current_active_cmd = 'L';
-            Serial.println("[AUTO-AVOID] Obstacle detected! Diverting route to LEFT");
-        } else if (strcmp(radar.best_path, "RIGHT") == 0) {
-            turnRight(180);
-            current_active_cmd = 'R';
-            Serial.println("[AUTO-AVOID] Obstacle detected! Diverting route to RIGHT");
-        } else {
-            moveBackward(180);
-            current_active_cmd = 'B';
-            Serial.println("[AUTO-AVOID] Obstacle detected! Reversing to clear space");
-        }
-
-        // Broadcast diversion telemetry to all connected clients
-        broadcastTelemetry("AUTONOMOUS_ROUTE_DIVERT");
     }
 #endif
 }

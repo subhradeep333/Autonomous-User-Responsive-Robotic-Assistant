@@ -20,5 +20,6 @@ void updateServo(int angle);
 void detectObstacle();
 bool isFrontBlocked();
 RadarData getRadarData();
+void performAvoidanceManeuver();
 
 #endif // RADAR_CONTROLLER_H
