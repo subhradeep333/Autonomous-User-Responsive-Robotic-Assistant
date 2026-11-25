@@ -121,6 +121,7 @@ class HandDetector:
         self.min_detection_confidence = min_detection_confidence
         self.min_tracking_confidence = min_tracking_confidence
         self.prev_landmarks = None
+        self.last_timestamp_ms = 0
 
         if not self.use_tasks_api and self.hands:
             self.hands.close()

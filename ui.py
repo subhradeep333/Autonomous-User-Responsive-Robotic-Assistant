@@ -949,6 +949,8 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Clean application exit handler."""
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()  # Stop GUI frame processing immediately to prevent teardown race conditions
         if self.car_controller:
             self.car_controller.send_immediate_stop()
         if self.websocket_manager:

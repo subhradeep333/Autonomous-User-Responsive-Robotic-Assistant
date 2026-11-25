@@ -4,8 +4,12 @@ Tests 100% of Core Subsystems: Camera, Landmarker, Gesture Classifier, Safety Ru
 Car Controller, WebSocket Manager, Ultrasonic Radar, and PySide6 Dashboard UI.
 """
 
+import os
 import sys
 import time
+
+# Suppress macOS pasteboard/window server warnings in automated test execution
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
 import cv2
 import numpy as np
 from PySide6.QtWidgets import QApplication

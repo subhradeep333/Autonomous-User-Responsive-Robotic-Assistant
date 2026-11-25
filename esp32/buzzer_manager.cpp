@@ -7,6 +7,7 @@
 
 #include "buzzer_manager.h"
 #include "config.h"
+#include "safety_controller.h"
 
 #if ENABLE_BUZZER
 
@@ -27,6 +28,7 @@ void stopBuzzerTone() {
 }
 
 void playTone(uint16_t freq, uint16_t duration_ms) {
+    resetSafetyWatchdog();
     if (freq == 0 || duration_ms == 0) {
         digitalWrite(BUZZER_PIN, LOW);
         delay(duration_ms);

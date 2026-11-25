@@ -30,6 +30,11 @@ class CarController:
         now = time.time()
         ws_connected = self.websocket_manager.is_connected if self.websocket_manager else False
 
+        # If disconnected, clear command cache so the first packet after reconnection is dispatched immediately
+        if not ws_connected:
+            self.last_sent_command = None
+            self.last_sent_speed = None
+
         # Evaluate safety rules
         target_cmd, safety_ok, fault_reason = self.safety_manager.evaluate_safety(
             gesture_cmd, is_stable, hand_detected, camera_ok, ws_connected, confidence, min_conf
