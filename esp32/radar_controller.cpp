@@ -35,7 +35,7 @@ void updateServo(int angle) {
 
 void initRadar() {
     pinMode(TRIG_PIN, OUTPUT);
-    pinMode(ECHO_PIN, INPUT_PULLDOWN);
+    pinMode(ECHO_PIN, INPUT);  // Standard high-impedance input (avoid internal pull-down loading)
     digitalWrite(TRIG_PIN, LOW);
 
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
@@ -52,24 +52,40 @@ void initRadar() {
 }
 
 float readDistance() {
-    // Ensure clean LOW state before trigger pulse
+    // 1. If Echo is still HIGH from a previous cycle, wait up to 3ms for it to settle LOW
+    if (digitalRead(ECHO_PIN) == HIGH) {
+        unsigned long wait_low_start = micros();
+        while (digitalRead(ECHO_PIN) == HIGH && (micros() - wait_low_start < 3000)) {
+            delayMicroseconds(10);
+        }
+    }
+
+    // 2. Clear trigger pin to ensure clean rising edge
     digitalWrite(TRIG_PIN, LOW);
     delayMicroseconds(4);
 
-    // Trigger 10us ultrasonic pulse on HC-SR04
+    // 3. Send 10us trigger pulse to start ultrasonic ping
     digitalWrite(TRIG_PIN, HIGH);
     delayMicroseconds(10);
     digitalWrite(TRIG_PIN, LOW);
 
-    // Measure echo pulse width (8000us ~ 137cm max, prevents CPU loop stalls that can drop Wi-Fi)
-    unsigned long duration = pulseIn(ECHO_PIN, HIGH, 8000);
+    // 4. Measure echo duration with FreeRTOS interrupt shield
+    // 20000us timeout (~3.4m) gives plenty of time for 2m range without blocking Wi-Fi
+    noInterrupts();
+    unsigned long duration = pulseIn(ECHO_PIN, HIGH, 20000);
+    interrupts();
+
     if (duration == 0) {
-        return ULTRASONIC_MAX_RANGE_CM;  // No reflection -> Clear range
+        return ULTRASONIC_MAX_RANGE_CM;  // No reflection -> Clear path
     }
 
     float raw_cm = (float)duration * 0.0343f / 2.0f;
-    // Reject electrical noise spikes (< 3cm) and out-of-range echoes (> max range)
-    if (raw_cm < 3.0f || raw_cm > ULTRASONIC_MAX_RANGE_CM) {
+
+    // Physical sensor range clamping:
+    // If obstacle is right against the sensor (< 2cm), clamp to 2cm (VERY CLOSE, do NOT reset to 200cm!)
+    if (raw_cm < 2.0f) {
+        raw_cm = 2.0f;
+    } else if (raw_cm > ULTRASONIC_MAX_RANGE_CM) {
         raw_cm = ULTRASONIC_MAX_RANGE_CM;
     }
 

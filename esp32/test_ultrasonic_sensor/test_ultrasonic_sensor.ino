@@ -54,7 +54,7 @@ void setup() {
     Serial.println("------------------------------------------------------------");
 
     pinMode(TRIG_PIN, OUTPUT);
-    pinMode(ECHO_PIN, INPUT_PULLDOWN);
+    pinMode(ECHO_PIN, INPUT);
     digitalWrite(TRIG_PIN, LOW);
 
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
@@ -82,19 +82,29 @@ void loop() {
     }
     updateServoAngle(current_angle);
 
-    // 2. Clear trigger pin
+    // 2. If Echo pin is still HIGH from a previous pulse, wait up to 3ms for it to drop
+    if (digitalRead(ECHO_PIN) == HIGH) {
+        unsigned long wait_start = micros();
+        while (digitalRead(ECHO_PIN) == HIGH && (micros() - wait_start < 3000)) {
+            delayMicroseconds(10);
+        }
+    }
+
+    // 3. Clear trigger pin
     digitalWrite(TRIG_PIN, LOW);
     delayMicroseconds(4);
 
-    // 3. Send 10 microsecond pulse to trigger ultrasonic burst
+    // 4. Send 10 microsecond pulse to trigger ultrasonic burst
     digitalWrite(TRIG_PIN, HIGH);
     delayMicroseconds(10);
     digitalWrite(TRIG_PIN, LOW);
 
-    // 4. Measure echo duration (timeout 25000us ~ 4 meters)
+    // 5. Measure echo duration with interrupts temporarily disabled (timeout 25000us ~ 4 meters)
+    noInterrupts();
     unsigned long echo_duration = pulseIn(ECHO_PIN, HIGH, 25000);
+    interrupts();
 
-    // 5. Evaluate result
+    // 6. Evaluate result
     if (echo_duration == 0) {
         // Did not receive echo pulse
         int echo_state = digitalRead(ECHO_PIN);
@@ -103,6 +113,7 @@ void loop() {
         Serial.println("       --> Check: Is HC-SR04 VCC connected to 5V? Are TRIG (GPIO 5) and ECHO (GPIO 17) swapped?");
     } else {
         float distance_cm = (float)echo_duration * 0.0343f / 2.0f;
+        if (distance_cm < 2.0f) distance_cm = 2.0f;  // Physical minimum clamp
         
         // Build visual bar
         int bars = constrain((int)(distance_cm / 5.0f), 1, 20);
@@ -118,5 +129,5 @@ void loop() {
                       current_angle, distance_cm, echo_duration, bar_str, status);
     }
 
-    delay(100);
+    delay(80);
 }

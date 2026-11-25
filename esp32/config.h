@@ -75,7 +75,7 @@
 #define SERVO_MIN_ANGLE 30         // Leftmost scan angle (degrees)
 #define SERVO_MAX_ANGLE 150        // Rightmost scan angle (degrees)
 #define SERVO_SWEEP_STEP_DEG 5     // Angle increment per sweep step (5 deg gives 24 smooth steps)
-#define SERVO_STEP_INTERVAL_MS 50  // Non-blocking servo update tick (50ms allows servo to settle, reducing power surges)
+#define SERVO_STEP_INTERVAL_MS 60  // Non-blocking servo update tick (60ms satisfies HC-SR04 ultrasonic echo settling time)
 #define SERVO_CENTER_OFFSET_DEG 0  // Fine-tuning offset (-15 to +15) if servo horn is mechanically tilted
 
 // Radar Operating Mode:
