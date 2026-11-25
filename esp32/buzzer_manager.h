@@ -5,6 +5,7 @@
 
 void initBuzzer();
 void playTone(uint16_t freq, uint16_t duration_ms);
+void stopBuzzerTone();
 void playBootChime();
 void playIgnitionChirp();
 void playAuraPulseSound(int pulse_idx);

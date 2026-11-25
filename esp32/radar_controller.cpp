@@ -111,7 +111,7 @@ void detectObstacle() {
     }
 
     // Determine direction with more clear space, handling dead-ends safely
-    if (center_dist < OBSTACLE_WARNING_CM) {
+    if (front_warning || front_blocked) {
         // Front is obstructed:
         // When object is in Front & Left (left_dist < right_dist), turn RIGHT into clear space!
         // When object is in Front & Right (right_dist < left_dist), turn LEFT into clear space!
@@ -339,6 +339,7 @@ void performAvoidanceManeuver() {
     // 6. Move forward into the newly cleared empty space
     if (center_dist > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 6: Path ahead is now clear (%.1f cm)! Driving forward into empty space...\n", center_dist);
+        resetSafetyWatchdog();
         moveForward(200);
         delay(450);  // Drive forward into the clear space
         stopMotors();

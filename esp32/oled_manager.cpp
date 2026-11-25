@@ -171,6 +171,8 @@ void playFrame1_Start() {
     display.display();
     delay(75);
   }
+
+  stopBuzzerTone();
 }
 
 // ==========================================
@@ -230,6 +232,7 @@ void playFrame2_Boot() {
     delay(65);
   }
 
+  stopBuzzerTone();
   delay(250);
 }
 
@@ -258,6 +261,8 @@ void playFrame3_Blink3Times() {
     delay(220);
   }
 
+  stopBuzzerTone();
+
   // Final steady hold on "AURA"
   display.clearDisplay();
   drawAuraLogo(logoX, logoY, 96);
@@ -278,6 +283,7 @@ void playAuraBootAnimation() {
     playFrame1_Start();
     playFrame2_Boot();
     playFrame3_Blink3Times();
+    stopBuzzerTone();
 
     // Leave the majestic steady AURA logo visible on screen during service initialization
     // The live HUD will smoothly overwrite it as soon as loop() starts.
@@ -320,9 +326,11 @@ void updateOLEDDisplay(char cmd, uint8_t speed, float dist, const char* radar_st
         // High-visibility blinking "OBJECT" alert with turning direction
         bool blink_phase = ((millis() / 250) % 2 == 0);
 
-        const char* turn_dir_text = "<<< TURN LEFT <<<";
+        const char* turn_dir_text = "! STOP & SCAN !";
         if (strcmp(best_path, "RIGHT") == 0) {
             turn_dir_text = ">>> TURN RIGHT >>>";
+        } else if (strcmp(best_path, "LEFT") == 0) {
+            turn_dir_text = "<<< TURN LEFT <<<";
         } else if (strcmp(best_path, "BACKWARD") == 0 || strcmp(best_path, "BACK") == 0) {
             turn_dir_text = "vvv REVERSE vvv";
         }
@@ -570,7 +578,9 @@ void showAvoidanceAnimation(const char* direction) {
 
 // Stubs when OLED is disabled in config.h
 void initOLED() {}
-void playAuraBootAnimation() {}
+void playAuraBootAnimation() {
+    playFullStartupRhythm(); // Plays continuous startup rhythm even when OLED is disabled
+}
 void playFrame1_Start() {}
 void playFrame2_Boot() {}
 void playFrame3_Blink3Times() {}
