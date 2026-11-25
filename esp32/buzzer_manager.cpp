@@ -2,17 +2,28 @@
  * ESP32 Buzzer Sound Engine
  * Supports both Active and Passive Buzzers on BUZZER_PIN (Default GPIO 4).
  * Generates cybernetic startup chords, ignition chirps, and obstacle warning sounds.
+ * Calibrated with maximum 40mA GPIO pad drive strength and high-SPL acoustic resonance (2.1kHz - 3.5kHz).
  */
 
 #include "buzzer_manager.h"
 #include "config.h"
 
 #if ENABLE_BUZZER
+#include "driver/gpio.h"
 
 void initBuzzer() {
     pinMode(BUZZER_PIN, OUTPUT);
     digitalWrite(BUZZER_PIN, LOW);
-    Serial.printf("[BUZZER] Initialized on GPIO %d (Active & Passive mode ready)\n", BUZZER_PIN);
+
+    // Set ESP32 GPIO drive capability to maximum level (GPIO_DRIVE_CAP_3 = ~40mA drive capability)
+    // Delivers maximum electrical power into the buzzer coil/piezo disc for maximum acoustic loudness
+    gpio_set_drive_capability((gpio_num_t)BUZZER_PIN, GPIO_DRIVE_CAP_3);
+
+#if BUZZER_IS_ACTIVE_TYPE
+    Serial.printf("[BUZZER] Initialized on GPIO %d in ACTIVE BUZZER mode (Max Volume DC Drive, 40mA Pad Strength)\n", BUZZER_PIN);
+#else
+    Serial.printf("[BUZZER] Initialized on GPIO %d in PASSIVE PIEZO mode (High-SPL Resonant Frequency Synthesizer, 40mA Pad Strength)\n", BUZZER_PIN);
+#endif
 }
 
 void stopBuzzerTone() {
@@ -27,59 +38,69 @@ void playTone(uint16_t freq, uint16_t duration_ms) {
         return;
     }
 
-    // tone() generates frequency for passive buzzers and drives active buzzers cleanly
+#if BUZZER_IS_ACTIVE_TYPE
+    // Active Buzzer: Delivers full continuous DC rail voltage to trigger the internal sound oscillator at rated 85+ dB
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(duration_ms);
+    digitalWrite(BUZZER_PIN, LOW);
+#else
+    // Passive Buzzer: 50% duty square wave at resonant acoustic frequency
     tone(BUZZER_PIN, freq, duration_ms);
     delay(duration_ms);
     noTone(BUZZER_PIN);
     digitalWrite(BUZZER_PIN, LOW);
+#endif
 }
 
-// Full Cybernetic Startup Chime (Heroic futuristic ascending sequence)
+// Full Cybernetic Startup Chime (Heroic futuristic ascending sequence in resonant acoustic spectrum)
 void playBootChime() {
-    Serial.println("[BUZZER] Playing AURA Cybernetic Startup Sound...");
-    // C6 (1046Hz) -> E6 (1318Hz) -> G6 (1568Hz) -> C7 (2093Hz)
-    playTone(1046, 70);
+    Serial.println("[BUZZER] Playing AURA High-Volume Cybernetic Startup Sound...");
+    // C7 (2093Hz) -> E7 (2637Hz) -> G7 (3136Hz) -> C8 (4186Hz)
+    playTone(2093, 80);
     delay(30);
-    playTone(1318, 70);
+    playTone(2637, 80);
     delay(30);
-    playTone(1568, 90);
+    playTone(3136, 100);
     delay(40);
-    playTone(2093, 220);
+    playTone(4186, 250);
+    stopBuzzerTone();
 }
 
 // Ignition chirp for Frame 1 (Key inserted)
 void playIgnitionChirp() {
-    playTone(1046, 40);
-    delay(40);
-    playTone(1568, 60);
+    playTone(2093, 45);
+    delay(35);
+    playTone(3136, 75);
+    stopBuzzerTone();
 }
 
-// Frame 1: Continuous 150ms rhythmic electronic ignition beat
+// Frame 1: Continuous 150ms rhythmic electronic ignition beat (Tuned for Maximum Volume & Resonance)
 void playFrame1Rhythm(int step) {
 #if ENABLE_BUZZER
     if (step % 2 == 0) {
         int beat = (step / 2) % 4;
         switch (beat) {
-            case 0: playTone(1046, 30); break; // C6
-            case 1: playTone(1318, 30); break; // E6
-            case 2: playTone(1046, 30); break; // C6
-            case 3: playTone(1568, 40); break; // G6 (Accent beat)
+            case 0: playTone(2093, 45); break; // C7 (Punchy start)
+            case 1: playTone(2637, 45); break; // E7 (High acoustic resonance)
+            case 2: playTone(2093, 45); break; // C7
+            case 3: playTone(3136, 55); break; // G7 (Peak 3.1kHz resonance - Loudest accent beat!)
         }
     } else {
-        stopBuzzerTone(); // Guaranteed silence gap between beats creates crisp rhythm
+        stopBuzzerTone(); // Guaranteed silence gap between beats creates crisp, powerful rhythm
     }
 #endif
 }
 
 // Frame 2: Ascending rhythmic melody as system progress bar fills (0% -> 100%)
+// Frequencies tuned into peak buzzer SPL resonance (2093Hz to 3520Hz)
 void playFrame2Rhythm(int pct) {
 #if ENABLE_BUZZER
     if (pct % 8 == 0) {
         int note_idx = (pct / 8) % 6;
-        const uint16_t melody[] = { 1046, 1175, 1318, 1568, 1760, 2093 };
-        playTone(melody[note_idx], 28);
+        const uint16_t melody[] = { 2093, 2349, 2637, 2794, 3136, 3520 };
+        playTone(melody[note_idx], 38);
     } else if (pct % 4 == 0) {
-        playTone(880, 16); // Syncopated sub-beat (A5)
+        playTone(2093, 20); // Resonant syncopated sub-beat (C7)
     }
 #endif
 }
@@ -89,24 +110,27 @@ void playFrame3Rhythm(int blink_idx) {
 #if ENABLE_BUZZER
     switch (blink_idx) {
         case 0:
-            playTone(1318, 60);
-            delay(30);
-            playTone(1318, 60);
+            // Pulse 1: Dual 2637Hz (E7) punch
+            playTone(2637, 70);
+            delay(25);
+            playTone(2637, 70);
             stopBuzzerTone();
             break;
         case 1:
-            playTone(1568, 60);
-            delay(30);
-            playTone(1568, 60);
+            // Pulse 2: Dual 3136Hz (G7) high-piercing punch
+            playTone(3136, 70);
+            delay(25);
+            playTone(3136, 70);
             stopBuzzerTone();
             break;
         case 2:
         default:
-            playTone(1760, 50);
-            delay(30);
-            playTone(2093, 70);
-            delay(30);
-            playTone(2349, 160); // Final crescendo chord!
+            // Pulse 3: Cybernetic power-up crescendo (E7 -> G7 -> B7 power chord)
+            playTone(2637, 60);
+            delay(25);
+            playTone(3136, 75);
+            delay(25);
+            playTone(3951, 190); // Final crescendo chord at 3951Hz (B7)
             stopBuzzerTone();    // 100% guarantee buzzer is silent after boot
             break;
     }
@@ -116,7 +140,7 @@ void playFrame3Rhythm(int blink_idx) {
 // Standalone continuous startup rhythm (Used if OLED screen is disconnected or disabled)
 void playFullStartupRhythm() {
 #if ENABLE_BUZZER
-    Serial.println("[BUZZER] Playing Standalone Continuous Startup Rhythm...");
+    Serial.println("[BUZZER] Playing Standalone High-Volume Continuous Startup Rhythm...");
     // Phase 1: Ignition beat
     for (int step = 0; step < 24; step++) {
         playFrame1Rhythm(step);
@@ -140,18 +164,18 @@ void playFullStartupRhythm() {
 #endif
 }
 
-// High-priority obstacle avoidance warning beep
+// High-priority obstacle avoidance warning beep (Maximum piercing loudness at 3136Hz)
 void playObstacleWarning() {
-    playTone(1760, 60);
+    playTone(3136, 70);
     delay(30);
-    playTone(1760, 60);
+    playTone(3136, 70);
     stopBuzzerTone();
 }
 
-// Emergency stop alarm (Fist lock / Safety trip)
+// Emergency stop alarm (Fist lock / Safety trip - Commanding 2093Hz alarm)
 void playEmergencySound() {
     for (int i = 0; i < 3; i++) {
-        playTone(880, 100);
+        playTone(2093, 110);
         delay(40);
     }
     stopBuzzerTone();

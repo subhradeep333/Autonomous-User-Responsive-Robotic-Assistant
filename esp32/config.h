@@ -126,4 +126,11 @@
 #define ENABLE_BUZZER 1                   // 1 = Enable Buzzer Sound Effects & Start Chimes, 0 = Disable
 #define BUZZER_PIN 4                      // ESP32 GPIO for Buzzer (+) Signal (GND to ESP32 GND)
 
+// Buzzer Hardware Driver Mode:
+// - 0 = Passive Piezo Buzzer (Default): Synthesizes high-SPL resonant frequencies (2.1kHz - 3.5kHz)
+//       with 40mA maximum GPIO pad drive capability for maximum acoustic volume.
+// - 1 = Active Buzzer (Internal Oscillator): Delivers solid DC rail voltage pulses so the internal
+//       sound generator sounds at its full rated 85+ dB maximum volume.
+#define BUZZER_IS_ACTIVE_TYPE 0
+
 #endif // CONFIG_H
