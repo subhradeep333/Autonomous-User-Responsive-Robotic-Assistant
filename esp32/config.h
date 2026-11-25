@@ -83,6 +83,9 @@
 // - CONTINUOUS_RADAR_SWEEP 0: Parks at 90° center, sweeps only when obstacle is detected
 #define CONTINUOUS_RADAR_SWEEP 1
 
+// Print live radar distance & angle to Arduino Serial Monitor (115200 baud) for instant verification
+#define RADAR_SERIAL_DEBUG 1
+
 // Proximity Detection & Safety Thresholds (cm)
 #define ULTRASONIC_MAX_RANGE_CM 200.0f  // Maximum valid sensing range (cm)
 #define OBSTACLE_VERY_CLOSE_CM 10.0f    // Emergency stop / collision threshold (10cm)

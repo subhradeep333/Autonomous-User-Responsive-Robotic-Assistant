@@ -149,6 +149,15 @@ void scanEnvironment() {
     // 3. Evaluate obstacle detection state with synchronized angle & distance
     detectObstacle();
 
+#if RADAR_SERIAL_DEBUG
+    static unsigned long last_radar_debug_print = 0;
+    if (now - last_radar_debug_print >= 250) {
+        last_radar_debug_print = now;
+        Serial.printf("[RADAR] Angle: %3d deg | Dist: %5.1f cm | Front: %5.1f cm | Status: %-17s | Path: %s\n",
+                      measured_angle, current_dist, center_dist, current_radar_data.status, current_radar_data.best_path);
+    }
+#endif
+
     // 4. Advance servo to next step
 #if CONTINUOUS_RADAR_SWEEP
     current_angle += (sweep_direction * SERVO_SWEEP_STEP_DEG);
