@@ -8,6 +8,10 @@ void playTone(uint16_t freq, uint16_t duration_ms);
 void playBootChime();
 void playIgnitionChirp();
 void playAuraPulseSound(int pulse_idx);
+void playFrame1Rhythm(int step);
+void playFrame2Rhythm(int pct);
+void playFrame3Rhythm(int blink_idx);
+void playFullStartupRhythm();
 void playObstacleWarning();
 void playEmergencySound();
 

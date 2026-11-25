@@ -130,9 +130,9 @@ void playFrame1_Start() {
   const int sparkleX[10] = {34, 42, 86, 94, 38, 90, 48, 80, 30, 98};
   const int sparkleY[10] = {12, 26, 14, 24, 36, 34, 10, 11, 20, 18};
 
-  playIgnitionChirp();  // Buzzer ignition audio chime
-
   for (int step = 0; step < 24; step++) {
+    playFrame1Rhythm(step);  // Continuous rhythmic electronic ignition beat
+
     display.clearDisplay();
 
     // Subtle top & bottom HUD bezel arcs
@@ -187,6 +187,8 @@ void playFrame2_Boot() {
   const int barH  = 7;
 
   for (int pct = 0; pct <= 100; pct += 4) {
+    playFrame2Rhythm(pct);  // Rhythmic ascending melodic arpeggio as progress bar fills
+
     display.clearDisplay();
 
     // Subtle corner brackets
@@ -241,7 +243,7 @@ void playFrame3_Blink3Times() {
   const int logoY = 22;
 
   for (int i = 0; i < 3; i++) {
-    playAuraPulseSound(i); // Audio tone synchronized with AURA graphic pulse
+    playFrame3Rhythm(i); // Audio rhythm pulses synchronized with AURA graphic pulse
 
     // ON with pulse rays
     display.clearDisplay();
@@ -263,7 +265,11 @@ void playFrame3_Blink3Times() {
 }
 
 void playAuraBootAnimation() {
-    if (!oled_detected) return;
+    if (!oled_detected) {
+        // OLED screen not detected or disabled: still play the continuous startup rhythm!
+        playFullStartupRhythm();
+        return;
+    }
 
     Serial.println("[OLED] Playing AURA Cybernetic Key & Geometric Logo Animation...");
     randomSeed(esp_random());
