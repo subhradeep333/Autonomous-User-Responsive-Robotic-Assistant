@@ -72,11 +72,28 @@ void loopBluetoothServer() {
 
         switch (cmd) {
             case 'F':
+#if ENABLE_COLLISION_AUTOBRAKE
                 if (isFrontBlocked()) {
-                    turnLeft(speed);
+                    stopMotors();
+                    break;
+                }
+#endif
+#if ENABLE_AUTONOMOUS_AVOIDANCE
+                if (isFrontBlocked()) {
+                    RadarData radar = getRadarData();
+                    if (strcmp(radar.best_path, "RIGHT") == 0) {
+                        turnRight(speed);
+                    } else if (strcmp(radar.best_path, "LEFT") == 0) {
+                        turnLeft(speed);
+                    } else {
+                        moveBackward(speed);
+                    }
                 } else {
                     moveForward(speed);
                 }
+#else
+                moveForward(speed);
+#endif
                 break;
             case 'B':
                 moveBackward(speed);

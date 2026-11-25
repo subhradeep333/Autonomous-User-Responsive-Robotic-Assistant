@@ -31,9 +31,11 @@ class RadarWidget(QWidget):
         self.current_angle = angle
         self.current_distance = distance
         now = time.time()
-        self.obstacle_points.append((angle, distance, now))
-        # Keep recent points (fade after 4 seconds)
-        self.obstacle_points = [p for p in self.obstacle_points if (now - p[2]) < 4.0]
+        # Remove old points within +/- 4 degrees to replace them with fresh scan data
+        self.obstacle_points = [p for p in self.obstacle_points if abs(p[0] - angle) > 4 and (now - p[2]) < 3.0]
+        # Only record points that represent actual sensed obstacles (under max range)
+        if distance < self.max_range:
+            self.obstacle_points.append((angle, distance, now))
         self.update()
 
     def paintEvent(self, event):
@@ -114,12 +116,19 @@ class RadarWidget(QWidget):
 
         # Top Overlay Readout Banner for Detected Object Distance
         painter.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        is_front_cone = (65 <= self.current_angle <= 115)
         if self.current_distance <= 10.0:
             painter.setPen(QColor("#EF4444"))
-            readout = f"🚨 OBJECT VERY CLOSE (10cm STOP): {self.current_distance:.1f} cm (@ {self.current_angle}°)"
+            if is_front_cone:
+                readout = f"🚨 OBJECT VERY CLOSE (10cm STOP): {self.current_distance:.1f} cm (@ {self.current_angle}°)"
+            else:
+                readout = f"⚠️ SIDE PROXIMITY ALERT: {self.current_distance:.1f} cm (@ {self.current_angle}°)"
         elif self.current_distance <= 25.0:
             painter.setPen(QColor("#F59E0B"))
-            readout = f"⚠️ OBSTACLE SENSED: {self.current_distance:.1f} cm (@ {self.current_angle}°)"
+            if is_front_cone:
+                readout = f"⚠️ FRONT OBSTACLE SENSED: {self.current_distance:.1f} cm (@ {self.current_angle}°)"
+            else:
+                readout = f"🟡 SIDE OBJECT DETECTED: {self.current_distance:.1f} cm (@ {self.current_angle}°)"
         else:
             painter.setPen(QColor("#10B981"))
             readout = f"🟢 DISTANCE: {self.current_distance:.1f} cm (@ {self.current_angle}°)"

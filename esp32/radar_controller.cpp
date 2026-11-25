@@ -77,21 +77,44 @@ float readDistance() {
 }
 
 void detectObstacle() {
-    if (center_dist < OBSTACLE_VERY_CLOSE_CM || current_dist < OBSTACLE_VERY_CLOSE_CM) {
+    bool is_front_angle = (current_angle >= 70 && current_angle <= 110);
+    bool front_blocked = (center_dist < OBSTACLE_VERY_CLOSE_CM || (is_front_angle && current_dist < OBSTACLE_VERY_CLOSE_CM));
+    bool front_warning = (center_dist < OBSTACLE_WARNING_CM || (is_front_angle && current_dist < OBSTACLE_WARNING_CM));
+
+    if (front_blocked) {
         strncpy(current_radar_data.status, "VERY CLOSE", sizeof(current_radar_data.status));
-    } else if (center_dist < OBSTACLE_WARNING_CM || current_dist < OBSTACLE_WARNING_CM) {
+    } else if (front_warning) {
         strncpy(current_radar_data.status, "OBSTACLE DETECTED", sizeof(current_radar_data.status));
+    } else if (left_dist < OBSTACLE_WARNING_CM || right_dist < OBSTACLE_WARNING_CM || (!is_front_angle && current_dist < OBSTACLE_WARNING_CM)) {
+        strncpy(current_radar_data.status, "SIDE OBSTACLE", sizeof(current_radar_data.status));
     } else {
         strncpy(current_radar_data.status, "CLEAR", sizeof(current_radar_data.status));
     }
 
-    // Determine direction with more clear space
-    if (left_dist > right_dist + 10.0f) {
-        strncpy(current_radar_data.best_path, "LEFT", sizeof(current_radar_data.best_path));
-    } else if (right_dist > left_dist + 10.0f) {
-        strncpy(current_radar_data.best_path, "RIGHT", sizeof(current_radar_data.best_path));
+    // Determine direction with more clear space, handling dead-ends safely
+    if (center_dist < OBSTACLE_WARNING_CM) {
+        // Front is obstructed: pick clearest side, or BACKWARD if both sides are also blocked
+        if (left_dist > right_dist + 10.0f && left_dist > OBSTACLE_WARNING_CM) {
+            strncpy(current_radar_data.best_path, "LEFT", sizeof(current_radar_data.best_path));
+        } else if (right_dist > left_dist + 10.0f && right_dist > OBSTACLE_WARNING_CM) {
+            strncpy(current_radar_data.best_path, "RIGHT", sizeof(current_radar_data.best_path));
+        } else if (left_dist > OBSTACLE_WARNING_CM) {
+            strncpy(current_radar_data.best_path, "LEFT", sizeof(current_radar_data.best_path));
+        } else if (right_dist > OBSTACLE_WARNING_CM) {
+            strncpy(current_radar_data.best_path, "RIGHT", sizeof(current_radar_data.best_path));
+        } else {
+            // Dead-end: all sectors blocked! Recommend backing out.
+            strncpy(current_radar_data.best_path, "BACKWARD", sizeof(current_radar_data.best_path));
+        }
     } else {
-        strncpy(current_radar_data.best_path, "CENTER", sizeof(current_radar_data.best_path));
+        // Front is clear: bias forward unless a wide open side path exists
+        if (left_dist > right_dist + 20.0f && left_dist > 100.0f) {
+            strncpy(current_radar_data.best_path, "LEFT", sizeof(current_radar_data.best_path));
+        } else if (right_dist > left_dist + 20.0f && right_dist > 100.0f) {
+            strncpy(current_radar_data.best_path, "RIGHT", sizeof(current_radar_data.best_path));
+        } else {
+            strncpy(current_radar_data.best_path, "CENTER", sizeof(current_radar_data.best_path));
+        }
     }
 
     current_radar_data.angle = current_angle;
@@ -110,11 +133,24 @@ void scanEnvironment() {
     }
     last_servo_update = now;
 
-    // Read distance at current angle
+    // 1. Measure distance at current physical servo angle
+    int measured_angle = current_angle;
     current_dist = readDistance();
 
+    // 2. Update sector distance memory strictly for the angle where distance was measured
+    if (measured_angle <= 70) {
+        left_dist = (0.6f * current_dist) + (0.4f * left_dist);
+    } else if (measured_angle >= 110) {
+        right_dist = (0.6f * current_dist) + (0.4f * right_dist);
+    } else {
+        center_dist = (0.6f * current_dist) + (0.4f * center_dist);
+    }
+
+    // 3. Evaluate obstacle detection state with synchronized angle & distance
+    detectObstacle();
+
+    // 4. Advance servo to next step
 #if CONTINUOUS_RADAR_SWEEP
-    // Continuous 30° to 150° active sweep mapping
     current_angle += (sweep_direction * SERVO_SWEEP_STEP_DEG);
     if (current_angle >= SERVO_MAX_ANGLE) {
         current_angle = SERVO_MAX_ANGLE;
@@ -125,14 +161,12 @@ void scanEnvironment() {
     }
     updateServo(current_angle);
 #else
-    // Obstacle-triggered sweep (parks at 90° straight ahead when clear)
     bool obstacle_sensed = (center_dist < OBSTACLE_WARNING_CM || current_dist < OBSTACLE_WARNING_CM);
     if (obstacle_sensed) {
         is_sweeping = true;
     }
 
     if (is_sweeping) {
-        // Active Obstacle Sweep across 30 deg to 150 deg
         current_angle += (sweep_direction * SERVO_SWEEP_STEP_DEG);
         if (current_angle >= SERVO_MAX_ANGLE) {
             current_angle = SERVO_MAX_ANGLE;
@@ -143,12 +177,10 @@ void scanEnvironment() {
         }
         updateServo(current_angle);
 
-        // If returned to center (around 90 deg) and obstacle cleared, stop sweeping
         if (abs(current_angle - 90) <= SERVO_SWEEP_STEP_DEG && center_dist >= OBSTACLE_WARNING_CM) {
             is_sweeping = false;
         }
     } else {
-        // Path is CLEAR: Servo stays parked facing straight ahead (90 deg)
         if (current_angle != 90) {
             if (current_angle < 90) current_angle = min(90, current_angle + SERVO_SWEEP_STEP_DEG);
             else if (current_angle > 90) current_angle = max(90, current_angle - SERVO_SWEEP_STEP_DEG);
@@ -156,18 +188,6 @@ void scanEnvironment() {
         }
     }
 #endif
-
-    // Update sector distance memory strictly based on current servo angle
-    // In config.h & dashboard radar: 30° is Left, 90° is Center, 150° is Right
-    if (current_angle <= 70) {
-        left_dist = (0.6f * current_dist) + (0.4f * left_dist);
-    } else if (current_angle >= 110) {
-        right_dist = (0.6f * current_dist) + (0.4f * right_dist);
-    } else {
-        center_dist = (0.6f * current_dist) + (0.4f * center_dist);
-    }
-
-    detectObstacle();
 }
 
 bool isFrontBlocked() {

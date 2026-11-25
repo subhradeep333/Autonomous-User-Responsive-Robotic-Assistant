@@ -61,7 +61,8 @@ OBSTACLE_WARNING_CM = 25.0       # Cautionary Sector Sweep Threshold (25cm)
 RADAR_STATUS_METADATA = {
     "CLEAR": ("CLEAR", "🟢", "#10B981"),               # Emerald Green
     "OBSTACLE DETECTED": ("OBSTACLE", "⚠️", "#F59E0B"), # Amber
-    "VERY CLOSE": ("VERY CLOSE", "🚨", "#EF4444")       # Red
+    "VERY CLOSE": ("VERY CLOSE", "🚨", "#EF4444"),      # Red
+    "SIDE OBSTACLE": ("SIDE OBJECT", "🟡", "#F59E0B")   # Amber
 }
 
 # Dark Modern PySide6 Styling Palette
