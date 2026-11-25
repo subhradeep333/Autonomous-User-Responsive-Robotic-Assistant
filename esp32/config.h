@@ -46,13 +46,13 @@
 #define MIN_MOTOR_PWM 100      // Minimum PWM floor to overcome static gearbox friction cleanly
 
 // Steering Mode:
-// - PIVOT_STEERING true (Recommended): Inner wheel stops, outer wheel drives forward.
-//   Drastically reduces tire scrubbing friction, prevents motor stalls, and avoids battery brownouts.
-// - PIVOT_STEERING false: Tank / skid-steer counter-rotation (left reverse, right forward).
-#define PIVOT_STEERING true
+// - PIVOT_STEERING false (Recommended for 4WD): Counter-rotation tank steer (Left reverse, Right forward).
+//   Ensures maximum turning torque on all floor surfaces (carpet, tile, wood) without dragging dead wheels.
+// - PIVOT_STEERING true: Inner wheel stops, outer wheel drives forward (only suitable for 2WD + caster ball).
+#define PIVOT_STEERING false
 
 // Turn Power Boost: Additional PWM added during turns to ensure enough torque on high-friction floors
-#define TURN_POWER_BOOST 30    // Extra PWM added to turning maneuvers (clamped to 255)
+#define TURN_POWER_BOOST 40    // Extra PWM added to turning maneuvers (clamped to 255)
 
 // Motor Direction Polarity Inversion (Calibrated for Left: OUT1/OUT2, Right: OUT3/OUT4)
 #define INVERT_LEFT_MOTOR  true   // Left Motors (OUT1/OUT2): true keeps Forward when IN1=LOW, IN2=HIGH

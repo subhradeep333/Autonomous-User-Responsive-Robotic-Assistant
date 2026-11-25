@@ -247,43 +247,35 @@ void performAvoidanceManeuver() {
     current_radar_data.right_dist = right_dist;
     detectObstacle();
 
-    // 5. Automatically turn the car in the direction of the empty space
-    if (scanned_left > scanned_right + 5.0f && scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
-        Serial.printf("[AUTO-AVOID] Step 5: Turning LEFT into empty space (%.1f cm clear)...\n", scanned_left);
-        turnLeft(210);
-        delay(420);  // Pivot turn towards empty space on left
+    // 5. Automatically turn the car in the direction of the empty space using full 4WD counter-rotation
+    resetSafetyWatchdog();
+    if (scanned_left >= scanned_right && scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Counter-rotating LEFT into empty space (%.1f cm clear)...\n", scanned_left);
+        turnLeft(220);
+        delay(500);  // Full counter-rotation tank turn to the left
         stopMotors();
-    } else if (scanned_right > scanned_left + 5.0f && scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
-        Serial.printf("[AUTO-AVOID] Step 5: Turning RIGHT into empty space (%.1f cm clear)...\n", scanned_right);
-        turnRight(210);
-        delay(420);  // Pivot turn towards empty space on right
-        stopMotors();
-    } else if (scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
-        Serial.printf("[AUTO-AVOID] Step 5: Turning LEFT into empty space (%.1f cm clear)...\n", scanned_left);
-        turnLeft(210);
-        delay(420);
-        stopMotors();
-    } else if (scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
-        Serial.printf("[AUTO-AVOID] Step 5: Turning RIGHT into empty space (%.1f cm clear)...\n", scanned_right);
-        turnRight(210);
-        delay(420);
+    } else if (scanned_right > scanned_left && scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Counter-rotating RIGHT into empty space (%.1f cm clear)...\n", scanned_right);
+        turnRight(220);
+        delay(500);  // Full counter-rotation tank turn to the right
         stopMotors();
     } else {
-        // Both sides are blocked! Dead-end trap: reverse away, then turn around
+        // Both sides are blocked! Dead-end trap: reverse away, then spin around
         Serial.println("[AUTO-AVOID] Step 5: Dead-end! All directions blocked. Reversing away...");
-        moveBackward(190);
-        delay(450);  // Back away from obstacle
+        moveBackward(200);
+        delay(500);  // Back away from obstacle
         stopMotors();
         delay(150);
-        turnLeft(210);
-        delay(380);  // Turn away from obstacle
+        resetSafetyWatchdog();
+        turnLeft(220);
+        delay(450);  // Spin away from obstacle
         stopMotors();
     }
 
     resetSafetyWatchdog();
 
     // Refresh forward clearance measurement after turn
-    delay(100);
+    delay(150);
     center_dist = readDistance();
     current_dist = center_dist;
     current_radar_data.center_dist = center_dist;
@@ -292,9 +284,9 @@ void performAvoidanceManeuver() {
 
     // 6. Move forward into the newly cleared empty space
     if (center_dist > OBSTACLE_AVOID_DISTANCE_CM) {
-        Serial.println("[AUTO-AVOID] Step 6: Path ahead is now clear! Driving forward into empty space...");
-        moveForward(180);
-        delay(400);  // Drive forward into the clear space
+        Serial.printf("[AUTO-AVOID] Step 6: Path ahead is now clear (%.1f cm)! Driving forward into empty space...\n", center_dist);
+        moveForward(200);
+        delay(450);  // Drive forward into the clear space
         stopMotors();
     }
 
