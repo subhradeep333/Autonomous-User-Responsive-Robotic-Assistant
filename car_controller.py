@@ -53,9 +53,17 @@ class CarController:
         return target_cmd, safety_ok, fault_reason
 
     def send_immediate_stop(self):
-        """Sends an immediate STOP packet over WebSocket."""
+        """Sends an immediate STOP packet ('S') over WebSocket."""
         self.active_command = config.CMD_STOP
         self.last_sent_command = config.CMD_STOP
         self.last_send_time = time.time()
         if self.websocket_manager and self.websocket_manager.is_connected:
             self.websocket_manager.send_command(config.CMD_STOP, self.motor_speed)
+
+    def send_emergency_stop(self):
+        """Sends an immediate EMERGENCY STOP packet ('E') over WebSocket."""
+        self.active_command = config.CMD_EMERGENCY_STOP
+        self.last_sent_command = config.CMD_EMERGENCY_STOP
+        self.last_send_time = time.time()
+        if self.websocket_manager and self.websocket_manager.is_connected:
+            self.websocket_manager.send_command(config.CMD_EMERGENCY_STOP, self.motor_speed)

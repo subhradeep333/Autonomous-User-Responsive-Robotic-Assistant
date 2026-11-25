@@ -21,5 +21,6 @@ void detectObstacle();
 bool isFrontBlocked();
 RadarData getRadarData();
 void performAvoidanceManeuver();
+unsigned long getLastAvoidanceTime();
 
 #endif // RADAR_CONTROLLER_H

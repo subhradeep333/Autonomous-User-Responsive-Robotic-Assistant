@@ -259,6 +259,10 @@ def run_all_tests():
     car_ctrl.send_immediate_stop()
     record_test("Car Controller Immediate Stop State Reset", car_ctrl.active_command == config.CMD_STOP)
 
+    # Test Immediate Emergency Stop Method
+    car_ctrl.send_emergency_stop()
+    record_test("Car Controller Emergency Stop State Reset", car_ctrl.active_command == config.CMD_EMERGENCY_STOP)
+
     # --------------------------------------------------------------------------
     # SUITE 6: ULTRASONIC RADAR SCOPE & DISTANCE THRESHOLDS
     # --------------------------------------------------------------------------

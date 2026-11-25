@@ -608,7 +608,7 @@ class MainWindow(QMainWindow):
 
         st_hdr = QHBoxLayout()
         st_hdr.addWidget(self._create_metric_header("STABILITY HYSTERESIS BUFFER"))
-        self.lbl_stab_val = QLabel("5 Frames")
+        self.lbl_stab_val = QLabel(f"{config.DEFAULT_STABILITY_FRAME_THRESHOLD} Frames")
         self.lbl_stab_val.setStyleSheet("font-weight: bold; color: #00E5FF;")
         st_hdr.addWidget(self.lbl_stab_val, alignment=Qt.AlignRight)
         st_layout.addLayout(st_hdr)
@@ -732,7 +732,7 @@ class MainWindow(QMainWindow):
             self._on_ws_log("SYSTEM", "Emergency Stop Cleared")
         else:
             self.safety_manager.trigger_emergency_stop()
-            self.car_controller.send_immediate_stop()
+            self.car_controller.send_emergency_stop()
             self.btn_emergency.setText("CLEAR EMERGENCY ⚠️")
             self.lbl_system_badge.setText("🚨 EMERGENCY STOP")
             self.lbl_system_badge.setStyleSheet(

@@ -72,11 +72,9 @@ float readDistance() {
     delayMicroseconds(10);
     digitalWrite(TRIG_PIN, LOW);
 
-    // 4. Measure echo duration with FreeRTOS interrupt shield
-    // 20000us timeout (~3.4m) gives plenty of time for 2m range without blocking Wi-Fi
-    noInterrupts();
+    // 4. Measure echo duration
+    // 20000us timeout (~3.4m) gives plenty of time for 2m range without blocking FreeRTOS or Wi-Fi
     unsigned long duration = pulseIn(ECHO_PIN, HIGH, 20000);
-    interrupts();
 
     if (duration == 0) {
         return ULTRASONIC_MAX_RANGE_CM;  // No reflection -> Clear path
@@ -221,6 +219,12 @@ bool isFrontBlocked() {
     return (center_dist < trigger_dist || (current_angle >= 70 && current_angle <= 110 && current_dist < trigger_dist));
 }
 
+static unsigned long last_avoidance_time = 0;
+
+unsigned long getLastAvoidanceTime() {
+    return last_avoidance_time;
+}
+
 RadarData getRadarData() {
     return current_radar_data;
 }
@@ -346,5 +350,6 @@ void performAvoidanceManeuver() {
     }
 
     resetSafetyWatchdog();
+    last_avoidance_time = millis();  // Set debounce timestamp upon maneuver completion
     Serial.println("[AUTO-AVOID] Step 7: Avoidance complete! Car safely repositioned in empty space.\n");
 }

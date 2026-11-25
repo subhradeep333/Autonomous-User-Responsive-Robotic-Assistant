@@ -4,6 +4,7 @@
 #include "safety_controller.h"
 #include "radar_controller.h"
 #include "websocket_server.h"
+#include "buzzer_manager.h"
 
 #if ENABLE_BLUETOOTH_SERIAL
 
@@ -71,7 +72,12 @@ void loopBluetoothServer() {
                     case 'L': turnLeft(180); break;
                     case 'R': turnRight(180); break;
                     case 'S': stopMotors(); break;
-                    case 'E': emergencyStop(); break;
+                    case 'E':
+                        emergencyStop();
+#if ENABLE_BUZZER
+                        playEmergencySound();
+#endif
+                        break;
                     default: stopMotors(); setActiveCommand('S'); break;
                 }
                 return;
@@ -119,6 +125,9 @@ void loopBluetoothServer() {
                 break;
             case 'E':
                 emergencyStop();
+#if ENABLE_BUZZER
+                playEmergencySound();
+#endif
                 break;
             default:
                 stopMotors();
