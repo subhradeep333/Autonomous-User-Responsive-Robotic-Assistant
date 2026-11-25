@@ -122,15 +122,21 @@ static inline void setMotorDirection(bool in1, bool in2, bool in3, bool in4) {
 void moveForward(uint8_t speed) {
     target_speed_ena = speed;
     target_speed_enb = speed;
+    current_speed_ena = speed;
+    current_speed_enb = speed;
 
     setMotorDirection(HIGH, LOW, HIGH, LOW);
+    applyHardwarePwm(speed, speed);
 }
 
 void moveBackward(uint8_t speed) {
     target_speed_ena = speed;
     target_speed_enb = speed;
+    current_speed_ena = speed;
+    current_speed_enb = speed;
 
     setMotorDirection(LOW, HIGH, LOW, HIGH);
+    applyHardwarePwm(speed, speed);
 }
 
 void turnLeft(uint8_t speed) {
@@ -141,12 +147,18 @@ void turnLeft(uint8_t speed) {
     // Eliminates tyre scrub friction, prevents motor stalls, and saves battery power
     target_speed_ena = 0;
     target_speed_enb = turn_speed;
+    current_speed_ena = 0;
+    current_speed_enb = turn_speed;
     setMotorDirection(LOW, LOW, HIGH, LOW);
+    applyHardwarePwm(0, turn_speed);
 #else
     // Skid-Steer / Tank Turn: Left wheels reverse, Right wheels forward
     target_speed_ena = turn_speed;
     target_speed_enb = turn_speed;
+    current_speed_ena = turn_speed;
+    current_speed_enb = turn_speed;
     setMotorDirection(LOW, HIGH, HIGH, LOW);
+    applyHardwarePwm(turn_speed, turn_speed);
 #endif
 }
 
@@ -158,12 +170,18 @@ void turnRight(uint8_t speed) {
     // Eliminates tyre scrub friction, prevents motor stalls, and saves battery power
     target_speed_ena = turn_speed;
     target_speed_enb = 0;
+    current_speed_ena = turn_speed;
+    current_speed_enb = 0;
     setMotorDirection(HIGH, LOW, LOW, LOW);
+    applyHardwarePwm(turn_speed, 0);
 #else
     // Skid-Steer / Tank Turn: Left wheels forward, Right wheels reverse
     target_speed_ena = turn_speed;
     target_speed_enb = turn_speed;
+    current_speed_ena = turn_speed;
+    current_speed_enb = turn_speed;
     setMotorDirection(HIGH, LOW, LOW, HIGH);
+    applyHardwarePwm(turn_speed, turn_speed);
 #endif
 }
 
