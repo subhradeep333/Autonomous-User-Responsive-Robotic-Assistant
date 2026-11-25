@@ -2,6 +2,7 @@
 #include "config.h"
 #include "motor_controller.h"
 #include "safety_controller.h"
+#include "oled_manager.h"
 #include <esp_arduino_version.h>
 
 static int current_angle = 90;
@@ -246,6 +247,10 @@ void performAvoidanceManeuver() {
     current_radar_data.left_dist = left_dist;
     current_radar_data.right_dist = right_dist;
     detectObstacle();
+
+#if ENABLE_OLED_DISPLAY
+    showAvoidanceAnimation(current_radar_data.best_path);
+#endif
 
     // 5. Automatically turn the car in the direction of the empty space using full 4WD counter-rotation
     resetSafetyWatchdog();

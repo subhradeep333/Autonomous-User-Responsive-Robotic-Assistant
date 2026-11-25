@@ -99,4 +99,13 @@
 #define ENABLE_AUTONOMOUS_AVOIDANCE 1
 #define OBSTACLE_AVOID_DISTANCE_CM 20.0f  // Distance threshold (20cm) to trigger immediate stop & avoidance maneuver
 
+// 0.96" I2C OLED Display (SSD1306 128x64) Configuration & AURA Animations
+#define ENABLE_OLED_DISPLAY 1             // 1 = Enable 0.96" OLED HUD & AURA Boot Animation, 0 = Disable
+#define OLED_SDA_PIN 21                   // ESP32 I2C Data Pin (SDA)
+#define OLED_SCL_PIN 22                   // ESP32 I2C Clock Pin (SCL)
+#define OLED_SCREEN_WIDTH 128             // OLED display width in pixels
+#define OLED_SCREEN_HEIGHT 64             // OLED display height in pixels
+#define OLED_I2C_ADDRESS 0x3C             // Default I2C address for 0.96" SSD1306 (alternate 0x3D)
+#define OLED_REFRESH_INTERVAL_MS 100      // Non-blocking HUD refresh tick (100ms = 10 FPS)
+
 #endif // CONFIG_H

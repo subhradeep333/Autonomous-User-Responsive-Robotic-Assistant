@@ -13,6 +13,7 @@
 #include "motor_controller.h"
 #include "safety_controller.h"
 #include "radar_controller.h"
+#include "oled_manager.h"
 
 void setup() {
     // Disable hardware brownout detector (prevents ESP32 reboots from battery voltage dips when motors start)
@@ -24,6 +25,10 @@ void setup() {
     Serial.println("\n==================================================");
     Serial.println("  ESP32 Dual Wi-Fi & Bluetooth IoT Car Firmware  ");
     Serial.println("==================================================");
+
+    // 0. Initialize 0.96" OLED display and play cybernetic AURA boot animation
+    initOLED();
+    playAuraBootAnimation();
 
     // 1. Initialize L298N Motor Driver Pins & ESP32 LEDC PWM
     initMotors();
@@ -65,6 +70,12 @@ void loop() {
     // 6. Check 500ms safety watchdog (auto-stops motors if signal drops)
     checkSafetyWatchdog();
 
-    // 7. Non-blocking FreeRTOS yield to ensure rock-solid Wi-Fi beacon transmission
+    // 7. Non-blocking Live 0.96" OLED HUD Telemetry Display
+#if ENABLE_OLED_DISPLAY
+    RadarData radar = getRadarData();
+    updateOLEDDisplay(getActiveCommand(), 180, radar.distance, radar.status, radar.best_path);
+#endif
+
+    // 8. Non-blocking FreeRTOS yield to ensure rock-solid Wi-Fi beacon transmission
     delay(2);
 }
