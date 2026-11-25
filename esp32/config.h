@@ -72,11 +72,25 @@
 #define PWM_CHANNEL_SERVO 2 // LEDC Channel for SG90 Servo (50Hz, 16-bit)
 
 // Radar & Servo Sweep Configuration Parameters
-#define SERVO_MIN_ANGLE 30         // Leftmost scan angle (degrees)
-#define SERVO_MAX_ANGLE 150        // Rightmost scan angle (degrees)
+#define SERVO_MIN_ANGLE 30         // Minimum scan limit (degrees)
+#define SERVO_MAX_ANGLE 150        // Maximum scan limit (degrees)
 #define SERVO_SWEEP_STEP_DEG 5     // Angle increment per sweep step (5 deg gives 24 smooth steps)
 #define SERVO_STEP_INTERVAL_MS 60  // Non-blocking servo update tick (60ms satisfies HC-SR04 ultrasonic echo settling time)
 #define SERVO_CENTER_OFFSET_DEG 0  // Fine-tuning offset (-15 to +15) if servo horn is mechanically tilted
+
+// Servo Physical Direction Calibration:
+// Standard SG90 servo (shaft pointing up, horn facing forward):
+// - 0° to 90°: Clockwise rotation -> points to the RIGHT of the car
+// - 90° to 180°: Counter-Clockwise rotation -> points to the LEFT of the car
+#define INVERT_SERVO_SWEEP false   // Set true only if your servo is mounted upside-down
+#if !INVERT_SERVO_SWEEP
+  #define SERVO_LEFT_ANGLE  145    // Servo angle facing physical LEFT (degrees)
+  #define SERVO_RIGHT_ANGLE 35     // Servo angle facing physical RIGHT (degrees)
+#else
+  #define SERVO_LEFT_ANGLE  35     // Inverted: Servo angle facing physical LEFT
+  #define SERVO_RIGHT_ANGLE 145    // Inverted: Servo angle facing physical RIGHT
+#endif
+#define SERVO_CENTER_ANGLE 90      // Servo angle facing straight ahead (degrees)
 
 // Radar Operating Mode:
 // - CONTINUOUS_RADAR_SWEEP 0 (On-Demand Search): Servo stays stationary facing straight ahead (90°).

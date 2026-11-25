@@ -112,15 +112,17 @@ void detectObstacle() {
 
     // Determine direction with more clear space, handling dead-ends safely
     if (center_dist < OBSTACLE_WARNING_CM) {
-        // Front is obstructed: pick clearest side if clearance exceeds avoid distance, or BACKWARD if both sides are blocked
-        if (left_dist > right_dist + 5.0f && left_dist > OBSTACLE_AVOID_DISTANCE_CM) {
-            strncpy(current_radar_data.best_path, "LEFT", sizeof(current_radar_data.best_path));
-        } else if (right_dist > left_dist + 5.0f && right_dist > OBSTACLE_AVOID_DISTANCE_CM) {
+        // Front is obstructed:
+        // When object is in Front & Left (left_dist < right_dist), turn RIGHT into clear space!
+        // When object is in Front & Right (right_dist < left_dist), turn LEFT into clear space!
+        if (right_dist > left_dist && right_dist > OBSTACLE_AVOID_DISTANCE_CM) {
             strncpy(current_radar_data.best_path, "RIGHT", sizeof(current_radar_data.best_path));
-        } else if (left_dist > OBSTACLE_AVOID_DISTANCE_CM) {
+        } else if (left_dist > right_dist && left_dist > OBSTACLE_AVOID_DISTANCE_CM) {
             strncpy(current_radar_data.best_path, "LEFT", sizeof(current_radar_data.best_path));
         } else if (right_dist > OBSTACLE_AVOID_DISTANCE_CM) {
             strncpy(current_radar_data.best_path, "RIGHT", sizeof(current_radar_data.best_path));
+        } else if (left_dist > OBSTACLE_AVOID_DISTANCE_CM) {
+            strncpy(current_radar_data.best_path, "LEFT", sizeof(current_radar_data.best_path));
         } else {
             // Dead-end: all sectors blocked! Recommend backing out.
             strncpy(current_radar_data.best_path, "BACKWARD", sizeof(current_radar_data.best_path));
@@ -157,6 +159,17 @@ void scanEnvironment() {
     current_dist = readDistance();
 
     // 2. Update sector distance memory strictly for the angle where distance was measured
+#if !INVERT_SERVO_SWEEP
+    // Standard mounting: CCW (> 110°) is LEFT, CW (< 70°) is RIGHT
+    if (measured_angle >= 110) {
+        left_dist = (0.6f * current_dist) + (0.4f * left_dist);
+    } else if (measured_angle <= 70) {
+        right_dist = (0.6f * current_dist) + (0.4f * right_dist);
+    } else {
+        center_dist = (0.6f * current_dist) + (0.4f * center_dist);
+    }
+#else
+    // Inverted mounting: CW (< 70°) is LEFT, CCW (> 110°) is RIGHT
     if (measured_angle <= 70) {
         left_dist = (0.6f * current_dist) + (0.4f * left_dist);
     } else if (measured_angle >= 110) {
@@ -164,6 +177,7 @@ void scanEnvironment() {
     } else {
         center_dist = (0.6f * current_dist) + (0.4f * center_dist);
     }
+#endif
 
     // 3. Evaluate obstacle detection state with synchronized angle & distance
     detectObstacle();
@@ -223,26 +237,26 @@ void performAvoidanceManeuver() {
     delay(200);  // Allow physical momentum to dissipate
 
     // 2. Servo actively scans LEFT for an empty, object-free space
-    Serial.println("[AUTO-AVOID] Step 2: Servo turning LEFT (35°) to search for empty space...");
-    updateServo(35);
-    delay(350);  // Give SG90 ample time to reach 35°
+    Serial.printf("[AUTO-AVOID] Step 2: Servo turning LEFT (%d°) to search for empty space...\n", SERVO_LEFT_ANGLE);
+    updateServo(SERVO_LEFT_ANGLE);
+    delay(350);  // Give SG90 ample time to reach Left angle
     resetSafetyWatchdog();
     float scanned_left = readDistance();
     left_dist = scanned_left;
     Serial.printf("[AUTO-AVOID] --> Left Space Clearance: %.1f cm\n", scanned_left);
 
     // 3. Servo actively scans RIGHT for an empty, object-free space
-    Serial.println("[AUTO-AVOID] Step 3: Servo turning RIGHT (145°) to search for empty space...");
-    updateServo(145);
-    delay(450);  // Give SG90 ample time to sweep across from 35° to 145° (110° stroke)
+    Serial.printf("[AUTO-AVOID] Step 3: Servo turning RIGHT (%d°) to search for empty space...\n", SERVO_RIGHT_ANGLE);
+    updateServo(SERVO_RIGHT_ANGLE);
+    delay(450);  // Give SG90 ample time to sweep across to Right angle
     resetSafetyWatchdog();
     float scanned_right = readDistance();
     right_dist = scanned_right;
     Serial.printf("[AUTO-AVOID] --> Right Space Clearance: %.1f cm\n", scanned_right);
 
     // 4. Return servo to CENTER (90°)
-    Serial.println("[AUTO-AVOID] Step 4: Re-centering servo to 90 degrees...");
-    updateServo(90);
+    Serial.printf("[AUTO-AVOID] Step 4: Re-centering servo to %d degrees...\n", SERVO_CENTER_ANGLE);
+    updateServo(SERVO_CENTER_ANGLE);
     delay(300);  // Give SG90 ample time to re-center
     resetSafetyWatchdog();
 
@@ -252,10 +266,20 @@ void performAvoidanceManeuver() {
     detectObstacle();
 
     // 5. Automatically turn the car in the direction of the empty space using full 4WD counter-rotation
-    // Active OLED display blinks "OBJECT" and turning direction during the turn
+    // If object is in front and left (scanned_right > scanned_left), turn RIGHT into empty space!
+    // If object is in front and right (scanned_left > scanned_right), turn LEFT into empty space!
     resetSafetyWatchdog();
-    if (scanned_left >= scanned_right && scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
-        Serial.printf("[AUTO-AVOID] Step 5: Counter-rotating LEFT into empty space (%.1f cm clear)...\n", scanned_left);
+    if (scanned_right > scanned_left && scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Obstacle on Left / Clear space on Right (%.1f cm)! Turning RIGHT...\n", scanned_right);
+        turnRight(220);
+#if ENABLE_OLED_DISPLAY
+        blinkObjectTurn("RIGHT", 500); // Active visual blink during physical turn
+#else
+        delay(500);
+#endif
+        stopMotors();
+    } else if (scanned_left > scanned_right && scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Obstacle on Right / Clear space on Left (%.1f cm)! Turning LEFT...\n", scanned_left);
         turnLeft(220);
 #if ENABLE_OLED_DISPLAY
         blinkObjectTurn("LEFT", 500);  // Active visual blink during physical turn
@@ -263,11 +287,20 @@ void performAvoidanceManeuver() {
         delay(500);
 #endif
         stopMotors();
-    } else if (scanned_right > scanned_left && scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
-        Serial.printf("[AUTO-AVOID] Step 5: Counter-rotating RIGHT into empty space (%.1f cm clear)...\n", scanned_right);
+    } else if (scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Turning RIGHT into clear space (%.1f cm)...\n", scanned_right);
         turnRight(220);
 #if ENABLE_OLED_DISPLAY
-        blinkObjectTurn("RIGHT", 500); // Active visual blink during physical turn
+        blinkObjectTurn("RIGHT", 500);
+#else
+        delay(500);
+#endif
+        stopMotors();
+    } else if (scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Turning LEFT into clear space (%.1f cm)...\n", scanned_left);
+        turnLeft(220);
+#if ENABLE_OLED_DISPLAY
+        blinkObjectTurn("LEFT", 500);
 #else
         delay(500);
 #endif
@@ -284,9 +317,9 @@ void performAvoidanceManeuver() {
         stopMotors();
         delay(150);
         resetSafetyWatchdog();
-        turnLeft(220);
+        turnRight(220);
 #if ENABLE_OLED_DISPLAY
-        blinkObjectTurn("LEFT", 450);
+        blinkObjectTurn("RIGHT", 450);
 #else
         delay(450);
 #endif
