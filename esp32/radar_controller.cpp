@@ -215,6 +215,9 @@ void performAvoidanceManeuver() {
     // 1. Immediately stop the car to prevent collision
     stopMotors();
     resetSafetyWatchdog();
+#if ENABLE_OLED_DISPLAY
+    showObstacleScanningAlert();
+#endif
     Serial.println("\n[AUTO-AVOID] ========================================");
     Serial.println("[AUTO-AVOID] Step 1: Stopped car immediately!");
     delay(200);  // Allow physical momentum to dissipate
@@ -248,32 +251,45 @@ void performAvoidanceManeuver() {
     current_radar_data.right_dist = right_dist;
     detectObstacle();
 
-#if ENABLE_OLED_DISPLAY
-    showAvoidanceAnimation(current_radar_data.best_path);
-#endif
-
     // 5. Automatically turn the car in the direction of the empty space using full 4WD counter-rotation
+    // Active OLED display blinks "OBJECT" and turning direction during the turn
     resetSafetyWatchdog();
     if (scanned_left >= scanned_right && scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Counter-rotating LEFT into empty space (%.1f cm clear)...\n", scanned_left);
         turnLeft(220);
-        delay(500);  // Full counter-rotation tank turn to the left
+#if ENABLE_OLED_DISPLAY
+        blinkObjectTurn("LEFT", 500);  // Active visual blink during physical turn
+#else
+        delay(500);
+#endif
         stopMotors();
     } else if (scanned_right > scanned_left && scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Counter-rotating RIGHT into empty space (%.1f cm clear)...\n", scanned_right);
         turnRight(220);
-        delay(500);  // Full counter-rotation tank turn to the right
+#if ENABLE_OLED_DISPLAY
+        blinkObjectTurn("RIGHT", 500); // Active visual blink during physical turn
+#else
+        delay(500);
+#endif
         stopMotors();
     } else {
         // Both sides are blocked! Dead-end trap: reverse away, then spin around
         Serial.println("[AUTO-AVOID] Step 5: Dead-end! All directions blocked. Reversing away...");
         moveBackward(200);
-        delay(500);  // Back away from obstacle
+#if ENABLE_OLED_DISPLAY
+        blinkObjectTurn("BACK", 500);
+#else
+        delay(500);
+#endif
         stopMotors();
         delay(150);
         resetSafetyWatchdog();
         turnLeft(220);
-        delay(450);  // Spin away from obstacle
+#if ENABLE_OLED_DISPLAY
+        blinkObjectTurn("LEFT", 450);
+#else
+        delay(450);
+#endif
         stopMotors();
     }
 

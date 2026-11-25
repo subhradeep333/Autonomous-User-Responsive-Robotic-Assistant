@@ -5,6 +5,7 @@
 
 #include "oled_manager.h"
 #include "config.h"
+#include "safety_controller.h"
 
 #if ENABLE_OLED_DISPLAY
 #include <Wire.h>
@@ -178,63 +179,110 @@ void updateOLEDDisplay(char cmd, uint8_t speed, float dist, const char* radar_st
     // -------------------------------------------------------------
     // CENTER DASHBOARD: COMMAND & MOTION STATE (Y: 16 to 48)
     // -------------------------------------------------------------
-    switch (cmd) {
-        case 'F':
-            // Large Glowing Upward Arrow
-            display.fillTriangle(24, 20, 14, 36, 34, 36, SSD1306_WHITE);
-            display.fillRect(20, 36, 8, 8, SSD1306_WHITE);
-            display.setTextSize(2);
-            display.setCursor(44, 24);
-            display.print("FORWARD");
-            break;
+    bool object_detected = (dist < OBSTACLE_AVOID_DISTANCE_CM || 
+                            strcmp(radar_status, "VERY CLOSE") == 0 || 
+                            strcmp(radar_status, "OBSTACLE DETECTED") == 0);
 
-        case 'B':
-            // Downward Arrow
-            display.fillTriangle(24, 44, 14, 28, 34, 28, SSD1306_WHITE);
-            display.fillRect(20, 20, 8, 8, SSD1306_WHITE);
-            display.setTextSize(2);
-            display.setCursor(44, 24);
-            display.print("REVERSE");
-            break;
+    if (object_detected) {
+        // High-visibility blinking "OBJECT" alert with turning direction
+        bool blink_phase = ((millis() / 250) % 2 == 0);
 
-        case 'L':
-            // Left Arrow
-            display.fillTriangle(14, 32, 30, 20, 30, 44, SSD1306_WHITE);
-            display.fillRect(30, 28, 8, 8, SSD1306_WHITE);
-            display.setTextSize(2);
-            display.setCursor(44, 24);
-            display.print("LEFT");
-            break;
+        const char* turn_dir_text = "<<< TURN LEFT <<<";
+        if (strcmp(best_path, "RIGHT") == 0) {
+            turn_dir_text = ">>> TURN RIGHT >>>";
+        } else if (strcmp(best_path, "BACKWARD") == 0 || strcmp(best_path, "BACK") == 0) {
+            turn_dir_text = "vvv REVERSE vvv";
+        }
 
-        case 'R':
-            // Right Arrow
-            display.fillTriangle(38, 32, 22, 20, 22, 44, SSD1306_WHITE);
-            display.fillRect(14, 28, 8, 8, SSD1306_WHITE);
-            display.setTextSize(2);
-            display.setCursor(48, 24);
-            display.print("RIGHT");
-            break;
+        if (blink_phase) {
+            // Filled high-contrast alert box
+            display.fillRect(2, 16, 124, 32, SSD1306_WHITE);
+            display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
 
-        case 'E':
-            // Emergency Stop Octagon
-            display.drawRoundRect(10, 18, 108, 28, 4, SSD1306_WHITE);
+            // Bold Size 2 OBJECT
+            display.setTextSize(2);
+            display.setCursor(28, 18);
+            display.print("OBJECT");
+
+            // Size 1 Turning Direction
             display.setTextSize(1);
-            display.setCursor(20, 22);
-            display.print("EMERGENCY STOP");
-            display.setTextSize(1);
-            display.setCursor(32, 34);
-            display.print("[FIST LOCK]");
-            break;
+            display.setCursor(10, 36);
+            display.print(turn_dir_text);
+        } else {
+            // Outline alert box with glowing text
+            display.setTextColor(SSD1306_WHITE);
+            display.drawRect(2, 16, 124, 32, SSD1306_WHITE);
 
-        case 'S':
-        default:
-            // Standby / Parked State
-            display.drawRect(18, 24, 14, 14, SSD1306_WHITE);
-            display.fillRect(22, 28, 6, 6, SSD1306_WHITE);
+            // Bold Size 2 OBJECT
             display.setTextSize(2);
-            display.setCursor(42, 24);
-            display.print("STOPPED");
-            break;
+            display.setCursor(28, 18);
+            display.print("OBJECT");
+
+            // Size 1 Turning Direction
+            display.setTextSize(1);
+            display.setCursor(10, 36);
+            display.print(turn_dir_text);
+        }
+        display.setTextColor(SSD1306_WHITE);
+    } else {
+        switch (cmd) {
+            case 'F':
+                // Large Glowing Upward Arrow
+                display.fillTriangle(24, 20, 14, 36, 34, 36, SSD1306_WHITE);
+                display.fillRect(20, 36, 8, 8, SSD1306_WHITE);
+                display.setTextSize(2);
+                display.setCursor(44, 24);
+                display.print("FORWARD");
+                break;
+
+            case 'B':
+                // Downward Arrow
+                display.fillTriangle(24, 44, 14, 28, 34, 28, SSD1306_WHITE);
+                display.fillRect(20, 20, 8, 8, SSD1306_WHITE);
+                display.setTextSize(2);
+                display.setCursor(44, 24);
+                display.print("REVERSE");
+                break;
+
+            case 'L':
+                // Left Arrow
+                display.fillTriangle(14, 32, 30, 20, 30, 44, SSD1306_WHITE);
+                display.fillRect(30, 28, 8, 8, SSD1306_WHITE);
+                display.setTextSize(2);
+                display.setCursor(44, 24);
+                display.print("LEFT");
+                break;
+
+            case 'R':
+                // Right Arrow
+                display.fillTriangle(38, 32, 22, 20, 22, 44, SSD1306_WHITE);
+                display.fillRect(14, 28, 8, 8, SSD1306_WHITE);
+                display.setTextSize(2);
+                display.setCursor(48, 24);
+                display.print("RIGHT");
+                break;
+
+            case 'E':
+                // Emergency Stop Octagon
+                display.drawRoundRect(10, 18, 108, 28, 4, SSD1306_WHITE);
+                display.setTextSize(1);
+                display.setCursor(20, 22);
+                display.print("EMERGENCY STOP");
+                display.setTextSize(1);
+                display.setCursor(32, 34);
+                display.print("[FIST LOCK]");
+                break;
+
+            case 'S':
+            default:
+                // Standby / Parked State
+                display.drawRect(18, 24, 14, 14, SSD1306_WHITE);
+                display.fillRect(22, 28, 6, 6, SSD1306_WHITE);
+                display.setTextSize(2);
+                display.setCursor(42, 24);
+                display.print("STOPPED");
+                break;
+        }
     }
 
     // -------------------------------------------------------------
@@ -263,34 +311,110 @@ void updateOLEDDisplay(char cmd, uint8_t speed, float dist, const char* radar_st
     display.display();
 }
 
-void showAvoidanceAnimation(const char* direction) {
+void showObstacleScanningAlert() {
     if (!oled_detected) return;
 
     display.clearDisplay();
     display.drawRoundRect(2, 2, 124, 60, 4, SSD1306_WHITE);
 
     display.setTextSize(1);
-    display.setCursor(14, 8);
-    display.print("! OBSTACLE AVOID !");
-    display.drawLine(10, 20, 118, 20, SSD1306_WHITE);
+    display.setCursor(18, 6);
+    display.print("! ! WARNING ! !");
+    display.drawLine(10, 16, 118, 16, SSD1306_WHITE);
 
+    // Big bold "OBJECT"
     display.setTextSize(2);
-    if (strcmp(direction, "LEFT") == 0) {
-        display.setCursor(16, 28);
-        display.print("<-- LEFT");
-    } else if (strcmp(direction, "RIGHT") == 0) {
-        display.setCursor(16, 28);
-        display.print("RIGHT -->");
-    } else {
-        display.setCursor(16, 28);
-        display.print("BACKING UP");
-    }
+    display.setCursor(28, 22);
+    display.print("OBJECT");
 
     display.setTextSize(1);
-    display.setCursor(18, 48);
-    display.print("DIVERTING TO SPACE");
+    display.setCursor(6, 44);
+    display.print("SEARCHING CLEAR PATH");
 
     display.display();
+}
+
+void blinkObjectTurn(const char* direction, int duration_ms) {
+    if (!oled_detected) {
+        delay(duration_ms);
+        return;
+    }
+
+    unsigned long start = millis();
+    const unsigned long blink_interval = 125;  // 8 Hz fast eye-catching visual blink
+    bool phase = false;
+
+    // Format direction string & horizontal alignment
+    const char* dir_label = "<-- LEFT";
+    int dir_x = 16;
+    if (strcmp(direction, "RIGHT") == 0) {
+        dir_label = "RIGHT -->";
+        dir_x = 10;
+    } else if (strcmp(direction, "BACK") == 0 || strcmp(direction, "BACKWARD") == 0) {
+        dir_label = "v REVERSE v";
+        dir_x = 8;
+    }
+
+    while (millis() - start < (unsigned long)duration_ms) {
+        display.clearDisplay();
+
+        if (phase) {
+            // Inverted full-screen flash: solid white background with black bold text
+            display.fillRect(0, 0, 128, 64, SSD1306_WHITE);
+            display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+
+            display.setTextSize(1);
+            display.setCursor(18, 6);
+            display.print("! ! WARNING ! !");
+            display.drawLine(10, 16, 118, 16, SSD1306_BLACK);
+
+            // Big Blinking "OBJECT"
+            display.setTextSize(2);
+            display.setCursor(28, 22);
+            display.print("OBJECT");
+
+            // Turning Direction
+            display.setTextSize(2);
+            display.setCursor(dir_x, 44);
+            display.print(dir_label);
+        } else {
+            // Normal high contrast: black background with white glowing text
+            display.setTextColor(SSD1306_WHITE);
+            display.drawRoundRect(2, 2, 124, 60, 4, SSD1306_WHITE);
+
+            display.setTextSize(1);
+            display.setCursor(18, 6);
+            display.print("! ! WARNING ! !");
+            display.drawLine(10, 16, 118, 16, SSD1306_WHITE);
+
+            // Big Blinking "OBJECT"
+            display.setTextSize(2);
+            display.setCursor(28, 22);
+            display.print("OBJECT");
+
+            // Turning Direction
+            display.setTextSize(2);
+            display.setCursor(dir_x, 44);
+            display.print(dir_label);
+        }
+
+        display.display();
+        phase = !phase;
+        resetSafetyWatchdog();
+
+        unsigned long elapsed = millis() - start;
+        unsigned long remaining = (elapsed < (unsigned long)duration_ms) ? ((unsigned long)duration_ms - elapsed) : 0;
+        unsigned long sleep_time = (remaining < blink_interval) ? remaining : blink_interval;
+        if (sleep_time > 0) {
+            delay(sleep_time);
+        }
+    }
+
+    display.setTextColor(SSD1306_WHITE);
+}
+
+void showAvoidanceAnimation(const char* direction) {
+    blinkObjectTurn(direction, 400);
 }
 
 #else
@@ -300,5 +424,7 @@ void initOLED() {}
 void playAuraBootAnimation() {}
 void updateOLEDDisplay(char cmd, uint8_t speed, float dist, const char* radar_status, const char* best_path) {}
 void showAvoidanceAnimation(const char* direction) {}
+void showObstacleScanningAlert() {}
+void blinkObjectTurn(const char* direction, int duration_ms) {}
 
 #endif
