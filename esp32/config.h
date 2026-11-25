@@ -79,16 +79,16 @@
 #define SERVO_CENTER_OFFSET_DEG 0  // Fine-tuning offset (-15 to +15) if servo horn is mechanically tilted
 
 // Servo Physical Direction Calibration:
-// Standard SG90 servo (shaft pointing up, horn facing forward):
-// - 0° to 90°: Clockwise rotation -> points to the RIGHT of the car
-// - 90° to 180°: Counter-Clockwise rotation -> points to the LEFT of the car
-#define INVERT_SERVO_SWEEP false   // Set true only if your servo is mounted upside-down
+// Standard SG90 servo: Inverted calibration matches physical mounting
+// - 55°: Points to the physical LEFT of the car
+// - 125°: Points to the physical RIGHT of the car
+#define INVERT_SERVO_SWEEP true    // Calibrated: Inverts servo sweep to match physical car Left/Right
 #if !INVERT_SERVO_SWEEP
   #define SERVO_LEFT_ANGLE  125    // Safe scan LEFT (degrees) - Prevents SG90 mechanical stall & wire binding
   #define SERVO_RIGHT_ANGLE 55     // Safe scan RIGHT (degrees) - Prevents SG90 mechanical stall & wire binding
 #else
-  #define SERVO_LEFT_ANGLE  55     // Inverted: Safe scan LEFT
-  #define SERVO_RIGHT_ANGLE 125    // Inverted: Safe scan RIGHT
+  #define SERVO_LEFT_ANGLE  55     // Calibrated Safe scan LEFT (degrees)
+  #define SERVO_RIGHT_ANGLE 125    // Calibrated Safe scan RIGHT (degrees)
 #endif
 #define SERVO_CENTER_ANGLE 90      // Servo angle facing straight ahead (degrees)
 

@@ -64,11 +64,11 @@ void initRadar() {
     delay(100);
 }
 
-float readDistance() {
-    // 1. If Echo is still HIGH from a previous cycle, wait up to 3ms for it to settle LOW
+static float singlePing() {
+    // 1. If Echo is still HIGH from a previous cycle, wait up to 2.5ms for it to settle LOW
     if (digitalRead(ECHO_PIN) == HIGH) {
         unsigned long wait_low_start = micros();
-        while (digitalRead(ECHO_PIN) == HIGH && (micros() - wait_low_start < 3000)) {
+        while (digitalRead(ECHO_PIN) == HIGH && (micros() - wait_low_start < 2500)) {
             delayMicroseconds(10);
         }
     }
@@ -83,17 +83,18 @@ float readDistance() {
     digitalWrite(TRIG_PIN, LOW);
 
     // 4. Measure echo duration
-    // 20000us timeout (~3.4m) gives plenty of time for 2m range without blocking FreeRTOS or Wi-Fi
-    unsigned long duration = pulseIn(ECHO_PIN, HIGH, 20000);
+    // 18000us timeout (~3.0m) gives plenty of time for 2m range without blocking FreeRTOS or Wi-Fi
+    unsigned long duration = pulseIn(ECHO_PIN, HIGH, 18000);
 
     if (duration == 0) {
-        return ULTRASONIC_MAX_RANGE_CM;  // No reflection -> Clear path
+        // If ECHO pin is stuck HIGH, an object is pressed directly against the transducer (< 2.5cm blind spot)
+        if (digitalRead(ECHO_PIN) == HIGH) {
+            return 2.0f;
+        }
+        return -1.0f;  // Signal timeout (no bounce detected)
     }
 
     float raw_cm = (float)duration * 0.0343f / 2.0f;
-
-    // Physical sensor range clamping:
-    // If obstacle is right against the sensor (< 2cm), clamp to 2cm (VERY CLOSE, do NOT reset to 200cm!)
     if (raw_cm < 2.0f) {
         raw_cm = 2.0f;
     } else if (raw_cm > ULTRASONIC_MAX_RANGE_CM) {
@@ -101,6 +102,46 @@ float readDistance() {
     }
 
     return raw_cm;
+}
+
+float readDistance() {
+    float d = singlePing();
+    if (d < 0.0f) {
+        // If previous distance was very close (< 20cm), a sudden 0 timeout means the object
+        // is in the transducer deadband/blindspot (< 2.5cm)
+        if (current_dist < 20.0f || center_dist < 20.0f) {
+            return 2.0f;
+        }
+        return ULTRASONIC_MAX_RANGE_CM;
+    }
+    return d;
+}
+
+// 3-sample median filter for rock-solid left/right clearance evaluation
+static float readDistanceRobust() {
+    float samples[3];
+    int valid_count = 0;
+
+    for (int i = 0; i < 3; i++) {
+        float d = singlePing();
+        if (d >= 0.0f) {
+            samples[valid_count++] = d;
+        }
+        delay(12);
+    }
+
+    if (valid_count == 0) {
+        if (current_dist < 20.0f || center_dist < 20.0f) return 2.0f;
+        return ULTRASONIC_MAX_RANGE_CM;
+    }
+    if (valid_count == 1) return samples[0];
+    if (valid_count == 2) return min(samples[0], samples[1]);
+
+    // Median of 3 samples (bubble sort)
+    if (samples[0] > samples[1]) { float t = samples[0]; samples[0] = samples[1]; samples[1] = t; }
+    if (samples[1] > samples[2]) { float t = samples[1]; samples[1] = samples[2]; samples[2] = t; }
+    if (samples[0] > samples[1]) { float t = samples[0]; samples[0] = samples[1]; samples[1] = t; }
+    return samples[1];
 }
 
 void detectObstacle() {
@@ -220,13 +261,25 @@ void scanEnvironment() {
 #endif
 }
 
+static uint8_t front_blocked_consecutive_count = 0;
+
 bool isFrontBlocked() {
 #if ENABLE_AUTONOMOUS_AVOIDANCE
     float trigger_dist = OBSTACLE_AVOID_DISTANCE_CM;
 #else
     float trigger_dist = OBSTACLE_VERY_CLOSE_CM;
 #endif
-    return (center_dist < trigger_dist || (current_angle >= 70 && current_angle <= 110 && current_dist < trigger_dist));
+    bool current_is_blocked = (current_angle >= 70 && current_angle <= 110 && current_dist < trigger_dist);
+    bool filtered_is_blocked = (center_dist < trigger_dist);
+
+    if (current_is_blocked || filtered_is_blocked) {
+        if (front_blocked_consecutive_count < 255) front_blocked_consecutive_count++;
+    } else {
+        front_blocked_consecutive_count = 0;
+    }
+
+    // Require at least 2 consecutive positive samples to reject single-ping electrical noise
+    return (front_blocked_consecutive_count >= 2);
 }
 
 static unsigned long last_avoidance_time = 0;
@@ -303,7 +356,7 @@ void performAvoidanceManeuver() {
     Serial.printf("[AUTO-AVOID] Step 2: Servo turning LEFT (%d°) to search for empty space...\n", SERVO_LEFT_ANGLE);
     updateServo(SERVO_LEFT_ANGLE);
     delayWithYield(350);  // Give SG90 ample time to reach Left angle
-    float scanned_left = readDistance();
+    float scanned_left = readDistanceRobust();
     left_dist = scanned_left;
     Serial.printf("[AUTO-AVOID] --> Left Space Clearance: %.1f cm\n", scanned_left);
 
@@ -311,7 +364,7 @@ void performAvoidanceManeuver() {
     Serial.printf("[AUTO-AVOID] Step 3: Servo turning RIGHT (%d°) to search for empty space...\n", SERVO_RIGHT_ANGLE);
     updateServo(SERVO_RIGHT_ANGLE);
     delayWithYield(450);  // Give SG90 ample time to sweep across to Right angle
-    float scanned_right = readDistance();
+    float scanned_right = readDistanceRobust();
     right_dist = scanned_right;
     Serial.printf("[AUTO-AVOID] --> Right Space Clearance: %.1f cm\n", scanned_right);
 
@@ -355,7 +408,7 @@ void performAvoidanceManeuver() {
 
     // Refresh forward clearance measurement after turn
     delayWithYield(150);
-    center_dist = readDistance();
+    center_dist = readDistanceRobust();
     current_dist = center_dist;
     current_radar_data.center_dist = center_dist;
     current_radar_data.distance = center_dist;
