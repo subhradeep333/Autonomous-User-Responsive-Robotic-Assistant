@@ -79,9 +79,10 @@
 #define SERVO_CENTER_OFFSET_DEG 0  // Fine-tuning offset (-15 to +15) if servo horn is mechanically tilted
 
 // Radar Operating Mode:
-// - CONTINUOUS_RADAR_SWEEP 1 (Recommended): Continuously sweeps 30° to 150° and maps surroundings in real time
-// - CONTINUOUS_RADAR_SWEEP 0: Parks at 90° center, sweeps only when obstacle is detected
-#define CONTINUOUS_RADAR_SWEEP 1
+// - CONTINUOUS_RADAR_SWEEP 0 (On-Demand Search): Servo stays stationary facing straight ahead (90°).
+//   When an obstacle is detected in front, the servo scans left & right to search for empty space, then the car turns.
+// - CONTINUOUS_RADAR_SWEEP 1: Continuously sweeps 30° to 150°
+#define CONTINUOUS_RADAR_SWEEP 0
 
 // Print live radar distance & angle to Arduino Serial Monitor (115200 baud) for instant verification
 #define RADAR_SERIAL_DEBUG 1

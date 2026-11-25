@@ -188,31 +188,11 @@ void scanEnvironment() {
     }
     updateServo(current_angle);
 #else
-    bool obstacle_sensed = (center_dist < OBSTACLE_WARNING_CM || current_dist < OBSTACLE_WARNING_CM);
-    if (obstacle_sensed) {
-        is_sweeping = true;
-    }
-
-    if (is_sweeping) {
-        current_angle += (sweep_direction * SERVO_SWEEP_STEP_DEG);
-        if (current_angle >= SERVO_MAX_ANGLE) {
-            current_angle = SERVO_MAX_ANGLE;
-            sweep_direction = -1;
-        } else if (current_angle <= SERVO_MIN_ANGLE) {
-            current_angle = SERVO_MIN_ANGLE;
-            sweep_direction = 1;
-        }
-        updateServo(current_angle);
-
-        if (abs(current_angle - 90) <= SERVO_SWEEP_STEP_DEG && center_dist >= OBSTACLE_WARNING_CM) {
-            is_sweeping = false;
-        }
-    } else {
-        if (current_angle != 90) {
-            if (current_angle < 90) current_angle = min(90, current_angle + SERVO_SWEEP_STEP_DEG);
-            else if (current_angle > 90) current_angle = max(90, current_angle - SERVO_SWEEP_STEP_DEG);
-            updateServo(current_angle);
-        }
+    // On-Demand Obstacle Search Mode:
+    // Servo stays locked facing straight ahead (90°) until an obstacle is detected in front
+    if (current_angle != 90) {
+        current_angle = 90;
+        updateServo(90);
     }
 #endif
 }
@@ -231,35 +211,77 @@ RadarData getRadarData() {
 }
 
 void performAvoidanceManeuver() {
-    // 1. Immediately kill motor power to prevent collision
+    // 1. Immediately stop the car to prevent collision
     stopMotors();
-    Serial.println("[AUTO-AVOID] Obstacle detected directly ahead! Step 1: Stopped immediately.");
+    Serial.println("[AUTO-AVOID] Obstacle detected in front! Step 1: Stopped immediately.");
     delay(150);  // Allow physical momentum to dissipate
 
-    // 2. Query latest radar sweep for clear direction / empty space
-    RadarData radar = getRadarData();
-    Serial.printf("[AUTO-AVOID] Step 2: Empty space is on %s (Left: %.1f cm, Center: %.1f cm, Right: %.1f cm)\n",
-                  radar.best_path, radar.left_dist, radar.center_dist, radar.right_dist);
+    // 2. Servo actively scans LEFT for an empty, object-free space
+    Serial.println("[AUTO-AVOID] Step 2: Servo scanning LEFT for empty space...");
+    updateServo(35);  // Turn SG90 servo Left (35°)
+    delay(220);       // Wait for servo to reach 35°
+    float scanned_left = readDistance();
+    left_dist = scanned_left;
+    Serial.printf("[AUTO-AVOID] Left space clearance: %.1f cm\n", scanned_left);
 
-    // 3. Move towards empty space
-    if (strcmp(radar.best_path, "LEFT") == 0) {
-        Serial.println("[AUTO-AVOID] Step 3: Turning LEFT towards empty space...");
+    // 3. Servo actively scans RIGHT for an empty, object-free space
+    Serial.println("[AUTO-AVOID] Step 3: Servo scanning RIGHT for empty space...");
+    updateServo(145); // Turn SG90 servo Right (145°)
+    delay(280);       // Wait for servo to sweep from 35° to 145°
+    float scanned_right = readDistance();
+    right_dist = scanned_right;
+    Serial.printf("[AUTO-AVOID] Right space clearance: %.1f cm\n", scanned_right);
+
+    // 4. Return servo to CENTER (90°)
+    Serial.println("[AUTO-AVOID] Step 4: Re-centering servo to 90 degrees...");
+    updateServo(90);
+    delay(200);       // Wait for servo to return to center
+
+    // Update radar telemetry with the fresh scanned values
+    current_radar_data.left_dist = left_dist;
+    current_radar_data.right_dist = right_dist;
+    detectObstacle();
+
+    // 5. Automatically turn the car in the direction of the empty space
+    if (scanned_left > scanned_right + 5.0f && scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Turning LEFT into empty space (%.1f cm clear)...\n", scanned_left);
         turnLeft(190);
-        delay(350);  // Pivot towards empty space on left
+        delay(380);  // Pivot turn towards empty space on left
         stopMotors();
-    } else if (strcmp(radar.best_path, "RIGHT") == 0) {
-        Serial.println("[AUTO-AVOID] Step 3: Turning RIGHT towards empty space...");
+    } else if (scanned_right > scanned_left + 5.0f && scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Turning RIGHT into empty space (%.1f cm clear)...\n", scanned_right);
         turnRight(190);
-        delay(350);  // Pivot towards empty space on right
+        delay(380);  // Pivot turn towards empty space on right
+        stopMotors();
+    } else if (scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Turning LEFT into empty space (%.1f cm clear)...\n", scanned_left);
+        turnLeft(190);
+        delay(380);
+        stopMotors();
+    } else if (scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
+        Serial.printf("[AUTO-AVOID] Step 5: Turning RIGHT into empty space (%.1f cm clear)...\n", scanned_right);
+        turnRight(190);
+        delay(380);
         stopMotors();
     } else {
-        // Both sides blocked: reverse away from obstacle
-        Serial.println("[AUTO-AVOID] Step 3: Dead-end detected! Reversing away from obstacle...");
+        // Both sides are blocked! Dead-end trap: reverse away, then turn around
+        Serial.println("[AUTO-AVOID] Step 5: Dead-end! All directions blocked. Reversing away...");
         moveBackward(180);
-        delay(400);  // Back away from obstacle
+        delay(450);  // Back away from obstacle
+        stopMotors();
+        delay(100);
+        turnLeft(190);
+        delay(350);  // Turn away from obstacle
         stopMotors();
     }
 
+    // Refresh forward clearance measurement after turn
+    center_dist = readDistance();
+    current_dist = center_dist;
+    current_radar_data.center_dist = center_dist;
+    current_radar_data.distance = center_dist;
+    detectObstacle();
+
     resetSafetyWatchdog();
-    Serial.println("[AUTO-AVOID] Step 4: Avoidance maneuver complete. Motors safely stopped in clear space.");
+    Serial.println("[AUTO-AVOID] Step 6: Avoidance complete! Car aligned with empty space.");
 }
