@@ -162,8 +162,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 
 void checkAutonomousObstacleAvoidance() {
 #if ENABLE_AUTONOMOUS_AVOIDANCE
-    // Autonomous Avoidance: If driving FORWARD ('F') and obstacle detected, stop immediately and turn into empty space
-    if (current_active_cmd == 'F' && isFrontBlocked()) {
+    static unsigned long last_avoidance_trigger = 0;
+    unsigned long now = millis();
+
+    // Trigger avoidance whenever an obstacle is detected in front (< 20cm),
+    // whether the car was driving forward or has just stopped in front of the obstacle
+    if (isFrontBlocked() && (now - last_avoidance_trigger > 1500)) {
+        last_avoidance_trigger = now;
+        Serial.println("[AUTO-AVOID] Obstacle detected in front! Starting servo sweep and avoidance maneuver...");
         performAvoidanceManeuver();
         current_active_cmd = 'S';
         broadcastTelemetry("AUTONOMOUS_ROUTE_DIVERT");

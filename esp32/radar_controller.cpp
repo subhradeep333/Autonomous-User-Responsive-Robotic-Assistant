@@ -213,29 +213,34 @@ RadarData getRadarData() {
 void performAvoidanceManeuver() {
     // 1. Immediately stop the car to prevent collision
     stopMotors();
-    Serial.println("[AUTO-AVOID] Obstacle detected in front! Step 1: Stopped immediately.");
-    delay(150);  // Allow physical momentum to dissipate
+    resetSafetyWatchdog();
+    Serial.println("\n[AUTO-AVOID] ========================================");
+    Serial.println("[AUTO-AVOID] Step 1: Stopped car immediately!");
+    delay(200);  // Allow physical momentum to dissipate
 
     // 2. Servo actively scans LEFT for an empty, object-free space
-    Serial.println("[AUTO-AVOID] Step 2: Servo scanning LEFT for empty space...");
-    updateServo(35);  // Turn SG90 servo Left (35°)
-    delay(220);       // Wait for servo to reach 35°
+    Serial.println("[AUTO-AVOID] Step 2: Servo turning LEFT (35°) to search for empty space...");
+    updateServo(35);
+    delay(350);  // Give SG90 ample time to reach 35°
+    resetSafetyWatchdog();
     float scanned_left = readDistance();
     left_dist = scanned_left;
-    Serial.printf("[AUTO-AVOID] Left space clearance: %.1f cm\n", scanned_left);
+    Serial.printf("[AUTO-AVOID] --> Left Space Clearance: %.1f cm\n", scanned_left);
 
     // 3. Servo actively scans RIGHT for an empty, object-free space
-    Serial.println("[AUTO-AVOID] Step 3: Servo scanning RIGHT for empty space...");
-    updateServo(145); // Turn SG90 servo Right (145°)
-    delay(280);       // Wait for servo to sweep from 35° to 145°
+    Serial.println("[AUTO-AVOID] Step 3: Servo turning RIGHT (145°) to search for empty space...");
+    updateServo(145);
+    delay(450);  // Give SG90 ample time to sweep across from 35° to 145° (110° stroke)
+    resetSafetyWatchdog();
     float scanned_right = readDistance();
     right_dist = scanned_right;
-    Serial.printf("[AUTO-AVOID] Right space clearance: %.1f cm\n", scanned_right);
+    Serial.printf("[AUTO-AVOID] --> Right Space Clearance: %.1f cm\n", scanned_right);
 
     // 4. Return servo to CENTER (90°)
     Serial.println("[AUTO-AVOID] Step 4: Re-centering servo to 90 degrees...");
     updateServo(90);
-    delay(200);       // Wait for servo to return to center
+    delay(300);  // Give SG90 ample time to re-center
+    resetSafetyWatchdog();
 
     // Update radar telemetry with the fresh scanned values
     current_radar_data.left_dist = left_dist;
@@ -245,22 +250,22 @@ void performAvoidanceManeuver() {
     // 5. Automatically turn the car in the direction of the empty space
     if (scanned_left > scanned_right + 5.0f && scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Turning LEFT into empty space (%.1f cm clear)...\n", scanned_left);
-        turnLeft(200);
+        turnLeft(210);
         delay(420);  // Pivot turn towards empty space on left
         stopMotors();
     } else if (scanned_right > scanned_left + 5.0f && scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Turning RIGHT into empty space (%.1f cm clear)...\n", scanned_right);
-        turnRight(200);
+        turnRight(210);
         delay(420);  // Pivot turn towards empty space on right
         stopMotors();
     } else if (scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Turning LEFT into empty space (%.1f cm clear)...\n", scanned_left);
-        turnLeft(200);
+        turnLeft(210);
         delay(420);
         stopMotors();
     } else if (scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Turning RIGHT into empty space (%.1f cm clear)...\n", scanned_right);
-        turnRight(200);
+        turnRight(210);
         delay(420);
         stopMotors();
     } else {
@@ -269,13 +274,16 @@ void performAvoidanceManeuver() {
         moveBackward(190);
         delay(450);  // Back away from obstacle
         stopMotors();
-        delay(100);
-        turnLeft(200);
+        delay(150);
+        turnLeft(210);
         delay(380);  // Turn away from obstacle
         stopMotors();
     }
 
+    resetSafetyWatchdog();
+
     // Refresh forward clearance measurement after turn
+    delay(100);
     center_dist = readDistance();
     current_dist = center_dist;
     current_radar_data.center_dist = center_dist;
