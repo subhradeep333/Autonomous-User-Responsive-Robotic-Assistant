@@ -5,6 +5,10 @@
 
 void initOLED();
 void playAuraBootAnimation();
+void playFrame1_Start();
+void playFrame2_Boot();
+void playFrame3_Blink3Times();
+void drawAuraLogo(int x, int y, int revealWidth);
 void updateOLEDDisplay(char cmd, uint8_t speed, float dist, const char* radar_status, const char* best_path);
 void showAvoidanceAnimation(const char* direction);
 void showObstacleScanningAlert();

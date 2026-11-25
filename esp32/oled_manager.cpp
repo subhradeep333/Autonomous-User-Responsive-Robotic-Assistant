@@ -40,112 +40,229 @@ void initOLED() {
     display.display();
 }
 
+// 24x12 monochrome pixel-art key icon for Frame 1
+static const unsigned char KEY_BMP[] PROGMEM = {
+  0x3E, 0x00, 0x00,
+  0x7F, 0x00, 0x00,
+  0xFF, 0x80, 0x00,
+  0xE7, 0x80, 0x00,
+  0xC3, 0xFF, 0xFE,
+  0xC3, 0xFF, 0xFF,
+  0xC3, 0xFF, 0xFE,
+  0xE7, 0x86, 0x66,
+  0xFF, 0x86, 0x64,
+  0x7F, 0x00, 0x00,
+  0x3E, 0x00, 0x00,
+  0x00, 0x00, 0x00
+};
+
+// Draws a 3px-thick diagonal line cleanly without pixel gaps
+void drawThickLine(int x0, int y0, int x1, int y1, uint16_t color) {
+  for (int i = 0; i < 3; i++) {
+    display.drawLine(x0 + i, y0, x1 + i, y1, color);
+  }
+}
+
+// Draws the futuristic geometric "AURA" logo (96x20 px)
+// revealWidth: 0..96 controls left-to-right reveal (96 = fully visible)
+void drawAuraLogo(int x, int y, int revealWidth) {
+  // 'A' (chevron style, offset 0)
+  drawThickLine(x,      y + 19, x + 9,  y,      SSD1306_WHITE);
+  drawThickLine(x + 9,  y,      x + 18, y + 19, SSD1306_WHITE);
+
+  // 'U' (rounded bottom, offset 25)
+  int ux = x + 25;
+  display.fillRoundRect(ux, y, 20, 20, 6, SSD1306_WHITE);
+  display.fillRect(ux, y, 3, 7, SSD1306_WHITE);
+  display.fillRect(ux + 17, y, 3, 7, SSD1306_WHITE);
+  display.fillRoundRect(ux + 3, y, 14, 17, 3, SSD1306_BLACK);
+  display.fillRect(ux + 3, y, 14, 6, SSD1306_BLACK);
+
+  // 'R' (offset 50)
+  int rx = x + 50;
+  display.fillRoundRect(rx, y, 19, 12, 5, SSD1306_WHITE);
+  display.fillRect(rx, y, 6, 12, SSD1306_WHITE);
+  display.fillRoundRect(rx + 3, y + 3, 13, 6, 2, SSD1306_BLACK);
+  display.fillRect(rx + 3, y + 3, 5, 6, SSD1306_BLACK);
+  display.fillRect(rx, y, 3, 20, SSD1306_WHITE);
+  drawThickLine(rx + 9, y + 11, rx + 17, y + 19, SSD1306_WHITE);
+
+  // 'A' (chevron style, offset 75)
+  int ax = x + 75;
+  drawThickLine(ax,     y + 19, ax + 9,  y,      SSD1306_WHITE);
+  drawThickLine(ax + 9, y,      ax + 18, y + 19, SSD1306_WHITE);
+
+  // Mask unrevealed right side if animating
+  if (revealWidth < 96) {
+    int clamped = constrain(revealWidth, 0, 96);
+    display.fillRect(x + clamped, y, 96 - clamped, 20, SSD1306_BLACK);
+  }
+}
+
+// Draws subtle radiating pulse rays around the centered AURA logo (Frame 3)
+void drawPulseRays() {
+  // Top rays
+  display.drawLine(30, 14, 24,  7, SSD1306_WHITE);
+  display.drawLine(46, 12, 43,  4, SSD1306_WHITE);
+  display.drawLine(64, 11, 64,  3, SSD1306_WHITE);
+  display.drawLine(82, 12, 85,  4, SSD1306_WHITE);
+  display.drawLine(98, 14, 104, 7, SSD1306_WHITE);
+
+  // Bottom rays
+  display.drawLine(30, 49, 24,  56, SSD1306_WHITE);
+  display.drawLine(46, 51, 43,  59, SSD1306_WHITE);
+  display.drawLine(64, 52, 64,  60, SSD1306_WHITE);
+  display.drawLine(82, 51, 85,  59, SSD1306_WHITE);
+  display.drawLine(98, 49, 104, 56, SSD1306_WHITE);
+
+  // Side accents
+  display.drawLine(10, 32,  3, 32, SSD1306_WHITE);
+  display.drawLine(117, 32, 124, 32, SSD1306_WHITE);
+}
+
+// ==========================================
+// FRAME 1: START / IGNITION ON...
+// ==========================================
+void playFrame1_Start() {
+  const int sparkleX[10] = {34, 42, 86, 94, 38, 90, 48, 80, 30, 98};
+  const int sparkleY[10] = {12, 26, 14, 24, 36, 34, 10, 11, 20, 18};
+
+  for (int step = 0; step < 24; step++) {
+    display.clearDisplay();
+
+    // Subtle top & bottom HUD bezel arcs
+    display.drawLine(20, 1, 107, 1, SSD1306_WHITE);
+    display.drawLine(10, 2, 20, 1, SSD1306_WHITE);
+    display.drawLine(107, 1, 117, 2, SSD1306_WHITE);
+
+    display.drawLine(20, 62, 107, 62, SSD1306_WHITE);
+    display.drawLine(10, 61, 20, 62, SSD1306_WHITE);
+    display.drawLine(107, 62, 117, 61, SSD1306_WHITE);
+
+    // Twinkling particles around key
+    for (int i = 0; i < 10; i++) {
+      if ((step + i) % 3 != 0) {
+        display.drawPixel(sparkleX[i], sparkleY[i], SSD1306_WHITE);
+      }
+    }
+
+    // Key icon centered
+    display.drawBitmap(52, 12, KEY_BMP, 24, 12, SSD1306_WHITE);
+
+    // "START" label
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(49, 30);
+    display.print(F("START"));
+
+    // Animated "IGNITION ON..." dots
+    display.setCursor(22, 48);
+    display.print(F("IGNITION ON"));
+    int dots = (step / 4) % 4;
+    for (int d = 0; d < dots; d++) {
+      display.print('.');
+    }
+
+    display.display();
+    delay(75);
+  }
+}
+
+// ==========================================
+// FRAME 2: SYSTEM BOOT + AURA PARTICLE REVEAL
+// ==========================================
+void playFrame2_Boot() {
+  const int logoX = 16;
+  const int logoY = 10;
+  const int barX  = 14;
+  const int barY  = 50;
+  const int barW  = 100;
+  const int barH  = 7;
+
+  for (int pct = 0; pct <= 100; pct += 4) {
+    display.clearDisplay();
+
+    // Subtle corner brackets
+    display.drawLine(0, 0, 8, 0, SSD1306_WHITE);
+    display.drawLine(0, 0, 0, 8, SSD1306_WHITE);
+    display.drawLine(127, 0, 119, 0, SSD1306_WHITE);
+    display.drawLine(127, 0, 127, 8, SSD1306_WHITE);
+
+    // Reveal AURA logo left-to-right
+    int revealW = map(pct, 0, 100, 0, 96);
+    drawAuraLogo(logoX, logoY, revealW);
+
+    // Particle burst along the active reveal edge
+    if (pct < 100) {
+      int edgeX = logoX + revealW;
+      for (int p = 0; p < 16; p++) {
+        int px = edgeX + random(-8, 12);
+        int py = logoY + random(-4, 24);
+        if (px >= 0 && px < OLED_SCREEN_WIDTH && py >= 0 && py < 38) {
+          display.drawPixel(px, py, SSD1306_WHITE);
+        }
+      }
+    }
+
+    // "SYSTEM BOOT..." text
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(22, 39);
+    display.print(F("SYSTEM BOOT..."));
+
+    // Progress bar frame & fill
+    display.drawRect(barX, barY, barW, barH, SSD1306_WHITE);
+    int fillW = map(pct, 0, 100, 0, barW - 4);
+    if (fillW > 0) {
+      display.fillRect(barX + 2, barY + 2, fillW, barH - 4, SSD1306_WHITE);
+    }
+
+    display.display();
+    delay(65);
+  }
+
+  delay(250);
+}
+
+// ==========================================
+// FRAME 3: BLINK "AURA" 3 TIMES
+// ==========================================
+void playFrame3_Blink3Times() {
+  const int logoX = 16;
+  const int logoY = 22;
+
+  for (int i = 0; i < 3; i++) {
+    // ON with pulse rays
+    display.clearDisplay();
+    drawAuraLogo(logoX, logoY, 96);
+    drawPulseRays();
+    display.display();
+    delay(320);
+
+    // OFF
+    display.clearDisplay();
+    display.display();
+    delay(220);
+  }
+
+  // Final steady hold on "AURA"
+  display.clearDisplay();
+  drawAuraLogo(logoX, logoY, 96);
+  display.display();
+}
+
 void playAuraBootAnimation() {
     if (!oled_detected) return;
 
-    Serial.println("[OLED] Playing AURA Cybernetic Boot Animation...");
+    Serial.println("[OLED] Playing AURA Cybernetic Key & Geometric Logo Animation...");
+    randomSeed(esp_random());
 
-    // -------------------------------------------------------------
-    // SCENE 1: Expanding Radiant AURA Energy Rings
-    // -------------------------------------------------------------
-    for (int r = 4; r <= 38; r += 6) {
-        display.clearDisplay();
-        
-        // Draw expanding concentric energy rings
-        display.drawCircle(64, 32, r, SSD1306_WHITE);
-        if (r > 10) display.drawCircle(64, 32, r - 6, SSD1306_WHITE);
-        if (r > 20) display.drawCircle(64, 32, r - 16, SSD1306_WHITE);
+    // Run the 3-frame car startup sequence
+    playFrame1_Start();
+    playFrame2_Boot();
+    playFrame3_Blink3Times();
 
-        // Core pulsating orb
-        display.fillCircle(64, 32, 3, SSD1306_WHITE);
-
-        // Corner futuristic crosshairs
-        display.drawLine(2, 2, 8, 2, SSD1306_WHITE);
-        display.drawLine(2, 2, 2, 8, SSD1306_WHITE);
-        display.drawLine(125, 2, 119, 2, SSD1306_WHITE);
-        display.drawLine(125, 2, 125, 8, SSD1306_WHITE);
-        display.drawLine(2, 61, 8, 61, SSD1306_WHITE);
-        display.drawLine(2, 61, 2, 55, SSD1306_WHITE);
-        display.drawLine(125, 61, 119, 61, SSD1306_WHITE);
-        display.drawLine(125, 61, 125, 55, SSD1306_WHITE);
-
-        display.display();
-        delay(60);
-    }
-
-    // -------------------------------------------------------------
-    // SCENE 2: Cyber Text Reveal of "A U R A" Title Banner
-    // -------------------------------------------------------------
-    display.clearDisplay();
-    // High-tech bounding frame
-    display.drawRoundRect(4, 4, 120, 56, 4, SSD1306_WHITE);
-    display.drawRoundRect(6, 6, 116, 52, 3, SSD1306_WHITE);
-
-    // Glowing main title
-    display.setTextSize(2);
-    display.setCursor(20, 14);
-    display.print("A U R A");
-
-    // Subtitle
-    display.setTextSize(1);
-    display.setCursor(16, 34);
-    display.print("ROBOTIC ASSISTANT");
-    display.setCursor(24, 45);
-    display.print("AI GESTURE CAR");
-
-    display.display();
-    delay(750);
-
-    // Flash inverted effect for dramatic cyber impact
-    display.invertDisplay(true);
-    delay(100);
-    display.invertDisplay(false);
-    delay(300);
-
-    // -------------------------------------------------------------
-    // SCENE 3: System Diagnostic & High-Tech Progress Bar
-    // -------------------------------------------------------------
-    const char* boot_steps[] = {
-        "INIT HARDWARE...",
-        "CALIBRATING PWM...",
-        "RADAR SENSORS OK",
-        "WIFI AP ONLINE",
-        "SYSTEM READY"
-    };
-
-    for (int p = 0; p <= 100; p += 20) {
-        display.clearDisplay();
-
-        // Title header
-        display.setTextSize(1);
-        display.setCursor(38, 6);
-        display.print("* A U R A *");
-        display.drawLine(10, 16, 118, 16, SSD1306_WHITE);
-
-        // Status text
-        int step_idx = p / 20;
-        if (step_idx > 4) step_idx = 4;
-        display.setCursor(14, 25);
-        display.print(boot_steps[step_idx]);
-
-        // Progress bar container
-        display.drawRoundRect(14, 38, 100, 10, 2, SSD1306_WHITE);
-        // Fill progress
-        int fill_width = (p * 96) / 100;
-        if (fill_width > 0) {
-            display.fillRect(16, 40, fill_width, 6, SSD1306_WHITE);
-        }
-
-        // Percentage readout
-        display.setCursor(52, 51);
-        display.print(p);
-        display.print("%");
-
-        display.display();
-        delay(120);
-    }
-
-    delay(400);
+    delay(750); // Steady hold on majestic final AURA logo
     display.clearDisplay();
     display.display();
     Serial.println("[OLED] AURA Boot Animation Complete! Live HUD Active.");
@@ -422,6 +539,10 @@ void showAvoidanceAnimation(const char* direction) {
 // Stubs when OLED is disabled in config.h
 void initOLED() {}
 void playAuraBootAnimation() {}
+void playFrame1_Start() {}
+void playFrame2_Boot() {}
+void playFrame3_Blink3Times() {}
+void drawAuraLogo(int x, int y, int revealWidth) {}
 void updateOLEDDisplay(char cmd, uint8_t speed, float dist, const char* radar_status, const char* best_path) {}
 void showAvoidanceAnimation(const char* direction) {}
 void showObstacleScanningAlert() {}
