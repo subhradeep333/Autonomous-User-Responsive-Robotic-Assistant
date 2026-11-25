@@ -239,6 +239,55 @@ RadarData getRadarData() {
     return current_radar_data;
 }
 
+static void executeSoftTurn(bool is_right, uint8_t target_speed, uint16_t duration_ms) {
+    resetSafetyWatchdog();
+    // Progressive soft-start ramp: 80 -> 115 -> target_speed over 35ms
+    // Eliminates locked-rotor motor inrush current spikes that collapse battery voltage
+    uint8_t ramp_start = min((uint8_t)80, target_speed);
+    for (uint8_t s = ramp_start; s < target_speed; s += 25) {
+        if (is_right) turnRight(s);
+        else turnLeft(s);
+        delay(15);
+    }
+    if (is_right) turnRight(target_speed);
+    else turnLeft(target_speed);
+
+#if ENABLE_OLED_DISPLAY
+    blinkObjectTurn(is_right ? "RIGHT" : "LEFT", duration_ms);
+#else
+    delayWithYield(duration_ms);
+#endif
+    stopMotors();
+}
+
+static void executeSoftBackward(uint8_t target_speed, uint16_t duration_ms) {
+    resetSafetyWatchdog();
+    uint8_t ramp_start = min((uint8_t)80, target_speed);
+    for (uint8_t s = ramp_start; s < target_speed; s += 25) {
+        moveBackward(s);
+        delay(15);
+    }
+    moveBackward(target_speed);
+#if ENABLE_OLED_DISPLAY
+    blinkObjectTurn("BACK", duration_ms);
+#else
+    delayWithYield(duration_ms);
+#endif
+    stopMotors();
+}
+
+static void executeSoftForward(uint8_t target_speed, uint16_t duration_ms) {
+    resetSafetyWatchdog();
+    uint8_t ramp_start = min((uint8_t)80, target_speed);
+    for (uint8_t s = ramp_start; s < target_speed; s += 25) {
+        moveForward(s);
+        delay(15);
+    }
+    moveForward(target_speed);
+    delayWithYield(duration_ms);
+    stopMotors();
+}
+
 void performAvoidanceManeuver() {
     // 1. Immediately stop the car to prevent collision
     stopMotors();
@@ -277,65 +326,29 @@ void performAvoidanceManeuver() {
     detectObstacle();
 
     // 5. Automatically turn the car in the direction of the empty space
-    // Turn PWM calibrated to 170 to provide powerful turning torque without triggering battery voltage brownouts
+    // Turn PWM calibrated to 150 with progressive soft ramp to eliminate battery brownouts
     resetSafetyWatchdog();
-    const uint8_t AVOID_TURN_SPEED = 170;
-    const uint8_t AVOID_FWD_SPEED = 175;
+    const uint8_t AVOID_TURN_SPEED = 150;
+    const uint8_t AVOID_FWD_SPEED = 160;
 
     if (scanned_right > scanned_left && scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Obstacle on Left / Clear space on Right (%.1f cm)! Turning RIGHT...\n", scanned_right);
-        turnRight(AVOID_TURN_SPEED);
-#if ENABLE_OLED_DISPLAY
-        blinkObjectTurn("RIGHT", 500); // Active visual blink during physical turn
-#else
-        delayWithYield(500);
-#endif
-        stopMotors();
+        executeSoftTurn(true, AVOID_TURN_SPEED, 500);
     } else if (scanned_left > scanned_right && scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Obstacle on Right / Clear space on Left (%.1f cm)! Turning LEFT...\n", scanned_left);
-        turnLeft(AVOID_TURN_SPEED);
-#if ENABLE_OLED_DISPLAY
-        blinkObjectTurn("LEFT", 500);  // Active visual blink during physical turn
-#else
-        delayWithYield(500);
-#endif
-        stopMotors();
+        executeSoftTurn(false, AVOID_TURN_SPEED, 500);
     } else if (scanned_right > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Turning RIGHT into clear space (%.1f cm)...\n", scanned_right);
-        turnRight(AVOID_TURN_SPEED);
-#if ENABLE_OLED_DISPLAY
-        blinkObjectTurn("RIGHT", 500);
-#else
-        delayWithYield(500);
-#endif
-        stopMotors();
+        executeSoftTurn(true, AVOID_TURN_SPEED, 500);
     } else if (scanned_left > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 5: Turning LEFT into clear space (%.1f cm)...\n", scanned_left);
-        turnLeft(AVOID_TURN_SPEED);
-#if ENABLE_OLED_DISPLAY
-        blinkObjectTurn("LEFT", 500);
-#else
-        delayWithYield(500);
-#endif
-        stopMotors();
+        executeSoftTurn(false, AVOID_TURN_SPEED, 500);
     } else {
         // Both sides are blocked! Dead-end trap: reverse away, then spin around
         Serial.println("[AUTO-AVOID] Step 5: Dead-end! All directions blocked. Reversing away...");
-        moveBackward(170);
-#if ENABLE_OLED_DISPLAY
-        blinkObjectTurn("BACK", 500);
-#else
-        delayWithYield(500);
-#endif
-        stopMotors();
+        executeSoftBackward(150, 450);
         delayWithYield(150);
-        turnRight(AVOID_TURN_SPEED);
-#if ENABLE_OLED_DISPLAY
-        blinkObjectTurn("RIGHT", 450);
-#else
-        delayWithYield(450);
-#endif
-        stopMotors();
+        executeSoftTurn(true, AVOID_TURN_SPEED, 450);
     }
 
     resetSafetyWatchdog();
@@ -348,13 +361,10 @@ void performAvoidanceManeuver() {
     current_radar_data.distance = center_dist;
     detectObstacle();
 
-    // 6. Move forward into the newly cleared empty space
+    // 6. Move forward into the newly cleared empty space with progressive soft ramp
     if (center_dist > OBSTACLE_AVOID_DISTANCE_CM) {
         Serial.printf("[AUTO-AVOID] Step 6: Path ahead is now clear (%.1f cm)! Driving forward into empty space...\n", center_dist);
-        resetSafetyWatchdog();
-        moveForward(AVOID_FWD_SPEED);
-        delayWithYield(450);  // Drive forward into the clear space
-        stopMotors();
+        executeSoftForward(AVOID_FWD_SPEED, 400);
     }
 
     resetSafetyWatchdog();

@@ -9,20 +9,15 @@
 #include "config.h"
 
 #if ENABLE_BUZZER
-#include "driver/gpio.h"
 
 void initBuzzer() {
     pinMode(BUZZER_PIN, OUTPUT);
     digitalWrite(BUZZER_PIN, LOW);
 
-    // Set ESP32 GPIO drive capability to maximum level (GPIO_DRIVE_CAP_3 = ~40mA drive capability)
-    // Delivers maximum electrical power into the buzzer coil/piezo disc for maximum acoustic loudness
-    gpio_set_drive_capability((gpio_num_t)BUZZER_PIN, GPIO_DRIVE_CAP_3);
-
 #if BUZZER_IS_ACTIVE_TYPE
-    Serial.printf("[BUZZER] Initialized on GPIO %d in ACTIVE BUZZER mode (Max Volume DC Drive, 40mA Pad Strength)\n", BUZZER_PIN);
+    Serial.printf("[BUZZER] Initialized on GPIO %d in ACTIVE BUZZER mode\n", BUZZER_PIN);
 #else
-    Serial.printf("[BUZZER] Initialized on GPIO %d in PASSIVE PIEZO mode (High-SPL Resonant Frequency Synthesizer, 40mA Pad Strength)\n", BUZZER_PIN);
+    Serial.printf("[BUZZER] Initialized on GPIO %d in PASSIVE PIEZO mode\n", BUZZER_PIN);
 #endif
 }
 

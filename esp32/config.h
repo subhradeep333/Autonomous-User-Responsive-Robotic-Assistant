@@ -84,11 +84,11 @@
 // - 90° to 180°: Counter-Clockwise rotation -> points to the LEFT of the car
 #define INVERT_SERVO_SWEEP false   // Set true only if your servo is mounted upside-down
 #if !INVERT_SERVO_SWEEP
-  #define SERVO_LEFT_ANGLE  145    // Servo angle facing physical LEFT (degrees)
-  #define SERVO_RIGHT_ANGLE 35     // Servo angle facing physical RIGHT (degrees)
+  #define SERVO_LEFT_ANGLE  125    // Safe scan LEFT (degrees) - Prevents SG90 mechanical stall & wire binding
+  #define SERVO_RIGHT_ANGLE 55     // Safe scan RIGHT (degrees) - Prevents SG90 mechanical stall & wire binding
 #else
-  #define SERVO_LEFT_ANGLE  35     // Inverted: Servo angle facing physical LEFT
-  #define SERVO_RIGHT_ANGLE 145    // Inverted: Servo angle facing physical RIGHT
+  #define SERVO_LEFT_ANGLE  55     // Inverted: Safe scan LEFT
+  #define SERVO_RIGHT_ANGLE 125    // Inverted: Safe scan RIGHT
 #endif
 #define SERVO_CENTER_ANGLE 90      // Servo angle facing straight ahead (degrees)
 
