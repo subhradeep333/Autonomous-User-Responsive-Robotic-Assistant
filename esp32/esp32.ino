@@ -14,6 +14,7 @@
 #include "safety_controller.h"
 #include "radar_controller.h"
 #include "oled_manager.h"
+#include "buzzer_manager.h"
 
 void setup() {
     // Disable hardware brownout detector (prevents ESP32 reboots from battery voltage dips when motors start)
@@ -26,7 +27,8 @@ void setup() {
     Serial.println("  ESP32 Dual Wi-Fi & Bluetooth IoT Car Firmware  ");
     Serial.println("==================================================");
 
-    // 0. Initialize 0.96" OLED display and play cybernetic AURA boot animation
+    // 0. Initialize Buzzer sound engine and OLED display
+    initBuzzer();
     initOLED();
     playAuraBootAnimation();
 

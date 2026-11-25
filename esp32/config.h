@@ -122,4 +122,8 @@
 #define OLED_I2C_ADDRESS 0x3C             // Default I2C address for 0.96" SSD1306 (alternate 0x3D)
 #define OLED_REFRESH_INTERVAL_MS 100      // Non-blocking HUD refresh tick (100ms = 10 FPS)
 
+// Piezo / Passive / Active Buzzer Configuration & Cybernetic Sound FX
+#define ENABLE_BUZZER 1                   // 1 = Enable Buzzer Sound Effects & Start Chimes, 0 = Disable
+#define BUZZER_PIN 4                      // ESP32 GPIO for Buzzer (+) Signal (GND to ESP32 GND)
+
 #endif // CONFIG_H

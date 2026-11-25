@@ -6,6 +6,7 @@
 #include "oled_manager.h"
 #include "config.h"
 #include "safety_controller.h"
+#include "buzzer_manager.h"
 
 #if ENABLE_OLED_DISPLAY
 #include <Wire.h>
@@ -129,6 +130,8 @@ void playFrame1_Start() {
   const int sparkleX[10] = {34, 42, 86, 94, 38, 90, 48, 80, 30, 98};
   const int sparkleY[10] = {12, 26, 14, 24, 36, 34, 10, 11, 20, 18};
 
+  playIgnitionChirp();  // Buzzer ignition audio chime
+
   for (int step = 0; step < 24; step++) {
     display.clearDisplay();
 
@@ -238,6 +241,8 @@ void playFrame3_Blink3Times() {
   const int logoY = 22;
 
   for (int i = 0; i < 3; i++) {
+    playAuraPulseSound(i); // Audio tone synchronized with AURA graphic pulse
+
     // ON with pulse rays
     display.clearDisplay();
     drawAuraLogo(logoX, logoY, 96);
@@ -476,6 +481,8 @@ void blinkObjectTurn(const char* direction, int duration_ms) {
         dir_label = "v REVERSE v";
         dir_x = 8;
     }
+
+    playObstacleWarning(); // Audible alert chirps on obstacle evasion maneuver
 
     while (millis() - start < (unsigned long)duration_ms) {
         display.clearDisplay();
